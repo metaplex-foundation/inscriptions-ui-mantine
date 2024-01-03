@@ -132,8 +132,24 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
             onChange={() => {
               if (selectAll) {
                 setSelected(new Set());
+                const res: { [key: string]: { nfts: DasApiAsset[], selected: number } } = {};
+                Object.keys(collections).forEach((collection) => {
+                  res[collection] = {
+                    nfts: collections[collection].nfts,
+                    selected: 0,
+                  };
+                });
+                setCollections(res);
               } else {
                 setSelected(new Set(nfts?.map((nft) => nft.id)));
+                const res: { [key: string]: { nfts: DasApiAsset[], selected: number } } = {};
+                Object.keys(collections).forEach((collection) => {
+                  res[collection] = {
+                    nfts: collections[collection].nfts,
+                    selected: collections[collection].nfts.length,
+                  };
+                });
+                setCollections(res);
               }
               setSelectAll(!selectAll);
             }}
