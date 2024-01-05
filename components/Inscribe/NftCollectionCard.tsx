@@ -2,7 +2,7 @@ import { Badge, Box, Card, Group, Image, Skeleton, Text } from '@mantine/core';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useNftJson } from './hooks';
 
-export function NftCollectionCard({ collection, nfts, numSelected }: { collection: string, nfts: DasApiAsset[], numSelected?: number }) {
+export function NftCollectionCard({ nfts, numSelected }: { nfts: DasApiAsset[], numSelected: number }) {
   // TODO fetch collection NFT
   const { error, isPending, data: json } = useNftJson(nfts[0]);
 

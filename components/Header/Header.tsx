@@ -5,6 +5,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Link from 'next/link';
 import classes from './Header.module.css';
 import { MetaplexLogo, MetaplexLogoVariant } from '../MetaplexLogo';
+import { Env } from '@/providers/useEnv';
 
 const HeaderLink = ({ label, link }: { label: string, link: string }) => (
   <Link href={link} className={classes.link}>
@@ -12,7 +13,7 @@ const HeaderLink = ({ label, link }: { label: string, link: string }) => (
 
   </Link>);
 
-export function Header({ env, setEnv }: { env: string; setEnv: (env: string) => void }) {
+export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => void }) {
   return (
     <Container
       size="lg"

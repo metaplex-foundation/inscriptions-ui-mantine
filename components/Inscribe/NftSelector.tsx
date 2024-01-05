@@ -3,21 +3,24 @@ import { notifications } from '@mantine/notifications';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
+import { findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findMintInscriptionPda } from '@metaplex-foundation/mpl-inscription';
 import { useUmi } from '@/providers/useUmi';
 import { NftCard } from './NftCard';
 import { NftCollectionCard } from './NftCollectionCard';
 
 import classes from './NftSelector.module.css';
+import { AssetWithInscription, InscriptionInfo } from './types';
 
 export const UNCATAGORIZED = 'Uncategorized';
 
 export const getCollection = (nft: DasApiAsset) => nft.grouping.filter(({ group_key }) => group_key === 'collection')[0]?.group_value || UNCATAGORIZED;
 
-export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasApiAsset[]) => void, selectedNfts: DasApiAsset[] }) {
+export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: AssetWithInscription[]) => void, selectedNfts: AssetWithInscription[] }) {
   const [selectAll, setSelectAll] = useState(false);
-  const [collate, setCollate] = useState(true);
+  const [collate, setCollate] = useState(false);
+  const [hideInscribed, setHideInscribed] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedNfts.map((nft) => nft.id)));
-  const [collections, setCollections] = useState<{ [key: string]: { nfts: DasApiAsset[], selected: number } }>({});
+  const [collections, setCollections] = useState<{ [key: string]: { nfts: AssetWithInscription[], selected: number } }>({});
 
   const umi = useUmi();
 
@@ -25,7 +28,45 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
     queryKey: ['fetch-nfts', umi.identity.publicKey],
     queryFn: async () => {
       const assets = await umi.rpc.getAssetsByAuthority({ authority: umi.identity.publicKey });
-      return assets.items;
+      const infos: Pick<InscriptionInfo, 'inscriptionPda' | 'inscriptionMetadataAccount' | 'imagePda'>[] = assets.items.map((nft) => {
+        const inscriptionPda = findMintInscriptionPda(umi, { mint: nft.id });
+        const inscriptionMetadataAccount = findInscriptionMetadataPda(umi, { inscriptionAccount: inscriptionPda[0] });
+        const imagePda = findAssociatedInscriptionAccountPda(umi, {
+          associationTag: 'image',
+          inscriptionMetadataAccount: inscriptionMetadataAccount[0],
+        });
+
+        return {
+          inscriptionPda,
+          inscriptionMetadataAccount,
+          imagePda,
+        };
+      });
+
+      const inscriptionExists = await umi.rpc.getAccounts(infos.map((info) => info.inscriptionPda[0]), {
+        commitment: 'confirmed',
+        dataSlice: {
+          length: 0,
+          offset: 0,
+        },
+      });
+
+      const imageExists = await umi.rpc.getAccounts(infos.map((info) => info.imagePda[0]), {
+        commitment: 'confirmed',
+        dataSlice: {
+          length: 0,
+          offset: 0,
+        },
+      });
+
+      return infos.map((info, i) => ({
+        ...assets.items[i],
+        inscriptionPda: infos[i].inscriptionPda,
+        inscriptionMetadataAccount: infos[i].inscriptionMetadataAccount,
+        imagePda: infos[i].imagePda,
+        pdaExists: inscriptionExists[i].exists,
+        imagePdaExists: imageExists[i].exists,
+      }));
     },
   });
 
@@ -45,7 +86,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
       return;
     }
     const sNfts = new Set(selectedNfts.map((nft) => nft.id));
-    const col: { [key: string]: { nfts: DasApiAsset[], selected: number } } = {};
+    const col: { [key: string]: { nfts: AssetWithInscription[], selected: number } } = {};
     nfts.forEach((nft) => {
       const collection = getCollection(nft);
       if (!col[collection]) {
@@ -62,7 +103,8 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
     setCollections(col);
   }, [nfts]);
 
-  const handleSelect = useCallback((nft: DasApiAsset) => {
+  const handleSelect = useCallback((nft: AssetWithInscription) => {
+    if (nft.pdaExists) return;
     const col = getCollection(nft);
     if (selected.has(nft.id)) {
       selected.delete(nft.id);
@@ -118,13 +160,21 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
       <Group my="lg" justify="space-between">
         <Group>
           <Checkbox
+            label="Hide inscribed"
+            checked={hideInscribed}
+            disabled={isPending}
+            onChange={() => {
+              setHideInscribed(!hideInscribed);
+            }}
+          />
+          {/* <Checkbox
             label="Collate by collection"
             checked={collate}
             disabled={isPending}
             onChange={() => {
               setCollate(!collate);
             }}
-          />
+          /> */}
           <Checkbox
             label="Select All"
             checked={selectAll}
@@ -132,7 +182,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
             onChange={() => {
               if (selectAll) {
                 setSelected(new Set());
-                const res: { [key: string]: { nfts: DasApiAsset[], selected: number } } = {};
+                const res: { [key: string]: { nfts: AssetWithInscription[], selected: number } } = {};
                 Object.keys(collections).forEach((collection) => {
                   res[collection] = {
                     nfts: collections[collection].nfts,
@@ -142,7 +192,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
                 setCollections(res);
               } else {
                 setSelected(new Set(nfts?.map((nft) => nft.id)));
-                const res: { [key: string]: { nfts: DasApiAsset[], selected: number } } = {};
+                const res: { [key: string]: { nfts: AssetWithInscription[], selected: number } } = {};
                 Object.keys(collections).forEach((collection) => {
                   res[collection] = {
                     nfts: collections[collection].nfts,
@@ -164,7 +214,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
         </Button>
 
       </Group>
-          {/* TODO: filter out all already inscribed NFTs */}
+      {/* TODO: filter out all already inscribed NFTs */}
       {isPending ? <Center h="50vh"><Loader /> </Center> :
         <>
           <SimpleGrid
@@ -187,13 +237,16 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: DasAp
                   </Box>);
               })}
                        </>
-              : nfts?.map((nft) => (
+              : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true).map((nft) => (
                 <Box
                   key={nft.id}
                   onClick={() => {
                     handleSelect(nft);
                   }}
                   className={classes.cardContainer}
+                  style={{
+                    cursor: nft.pdaExists ? 'default' : 'pointer',
+                  }}
                 >
                   <NftCard nft={nft} isSelected={selected.has(nft.id)} />
                 </Box>))}

@@ -47,7 +47,7 @@ function Row({ nft, form, counter }: { nft: DasApiAsset, form: UseFormReturnType
       label: 'Type',
       stat: image.type,
     }].map(({ label, stat }) => (
-      <Box>
+      <Box key={label}>
         <Text className={classes.label}>{label}</Text>
         <Text className={classes.value}>{stat}</Text>
       </Box>));
@@ -118,7 +118,7 @@ function Row({ nft, form, counter }: { nft: DasApiAsset, form: UseFormReturnType
       label: 'Type',
       stat: previewInfo.type,
     }].map(({ label, stat }) => (
-      <Box>
+      <Box key={label}>
         <Text className={classes.label}>{label}</Text>
         <Text className={classes.value}>{stat}</Text>
       </Box>));

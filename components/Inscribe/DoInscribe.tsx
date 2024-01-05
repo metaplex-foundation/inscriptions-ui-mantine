@@ -2,21 +2,19 @@ import { Button, Center, Container, Loader, Modal, Paper, Progress, Stack, Text,
 import { useCallback, useEffect, useState } from 'react';
 import pMap from 'p-map';
 import { useQueryClient } from '@tanstack/react-query';
-import { createShard, findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findInscriptionShardPda, findMintInscriptionPda, initializeFromMint, safeFetchInscriptionShard, writeData } from '@metaplex-foundation/mpl-inscription';
+import { allocate, createShard, findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findInscriptionShardPda, findMintInscriptionPda, initializeAssociatedInscription, initializeFromMint, safeFetchInscriptionShard, writeData } from '@metaplex-foundation/mpl-inscription';
 import Compressor from 'compressorjs';
 import { useDisclosure } from '@mantine/hooks';
-import { Pda, Umi } from '@metaplex-foundation/umi';
+import { Pda, TransactionBuilder, TransactionBuilderGroup, Umi, signAllTransactions } from '@metaplex-foundation/umi';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { notifications } from '@mantine/notifications';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
-import { accountExists } from './hooks';
 import { InscriptionSettings } from './ConfigureInscribe';
 
 const sizeOf = require('browser-image-size');
 
-async function fetchIdempotentInscriptionShard(umi: Umi) {
-  const number = Math.floor(Math.random() * 32);
+async function fetchIdempotentInscriptionShard(umi: Umi, number = Math.floor(Math.random() * 32)) {
   const shardAccount = findInscriptionShardPda(umi, { shardNumber: number });
 
   // Check if the account has already been created.
@@ -39,7 +37,8 @@ const signatureToString = (signature: Uint8Array) => base58.deserialize(signatur
 
 type Calculated = {
   json: any;
-  newImage: Blob | File | null;
+  jsonLength: number;
+  newImage: Blob | File;
   nft: DasApiAsset;
   quality: number;
   size: number;
@@ -48,14 +47,14 @@ type Calculated = {
   inscriptionPda: Pda;
   inscriptionMetadataAccount: Pda;
   imagePda: Pda;
-  pdaExists: boolean;
-  imagePdaExists: boolean;
+  // pdaExists: boolean;
+  // imagePdaExists: boolean;
 };
 
-export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: InscriptionSettings[] }) {
+export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSettings: InscriptionSettings[], onComplete: (txs: string[]) => void }) {
   const [summary, setSummary] = useState<{ calculated: Calculated[], totalSize: number }>();
   const [progress, setProgress] = useState<number>(0);
-  const [results, setResults] = useState<string[]>();
+  const [maxProgress, setMaxProgress] = useState<number>(0);
   const [opened, { open, close }] = useDisclosure(false);
   const client = useQueryClient();
   const umi = useUmi();
@@ -91,20 +90,20 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
               inscriptionMetadataAccount: inscriptionMetadataAccount[0],
             });
 
-            const pdaExists = await accountExists(umi, inscriptionPda[0]);
-            const imagePdaExists = await accountExists(umi, imagePda[0]);
+            // const pdaExists = await accountExists(umi, inscriptionPda[0]);
+            // const imagePdaExists = await accountExists(umi, imagePda[0]);
 
             return {
               inscriptionPda,
               inscriptionMetadataAccount,
               imagePda,
-              pdaExists,
-              imagePdaExists,
+              // pdaExists,
+              // imagePdaExists,
             };
           },
         });
 
-        let newImage: Blob | File | null = image;
+        let newImage: Blob | File = image;
         if (!disabled) {
           // TODO optimize, only download headers
           const { width, height } = await sizeOf(image);
@@ -129,6 +128,7 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
           ...inscriptionData,
           ...settings,
           json,
+          jsonLength: JSON.stringify(json).length,
           newImage,
         };
       }, {
@@ -141,7 +141,7 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
         if (c.newImage) {
           size += c.newImage.size;
         }
-        size += JSON.stringify(c.json).length;
+        size += c.jsonLength;
       });
 
       setSummary({
@@ -160,29 +160,140 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
     try {
       open();
 
-      // TODO signAllTransaction
-      await pMap(summary.calculated, async (c: Calculated) => {
-        // Inscribe the NFT metadata of the new NFT
-        const inscribeRes = await initializeFromMint(umi, {
-          mintAccount: c.nft.id,
-          inscriptionShardAccount: await fetchIdempotentInscriptionShard(umi),
-        }).add(writeData(umi, {
-          inscriptionAccount: c.inscriptionPda,
-          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-          value: Buffer.from(
-            // TODO need to chunk this
-            JSON.stringify(c.json)
-          ),
-          associatedTag: null,
-          offset: 0,
-        })).sendAndConfirm(umi);
+      // TODO remove this because we don't need it
+      const shardAccounts = await Promise.all([...Array(32)].map((_, i) => fetchIdempotentInscriptionShard(umi, i)));
 
-        setProgress((p) => p + 1);
-        setResults((r) => [...(r || []), signatureToString(inscribeRes.signature)]);
+      const randomShard = () => shardAccounts[Math.floor(Math.random() * shardAccounts.length)];
+      let setupBuilder = new TransactionBuilder();
+      let dataBuilder = new TransactionBuilder();
+      const chunkSize = 800;
+      const imageDatas = (await Promise.all(summary.calculated.map((c) => c.newImage.arrayBuffer()))).map((b) => new Uint8Array(b));
+      const enc = new TextEncoder();
+
+      // TODO skip the inits if they already exist
+
+      summary.calculated.forEach((c, index) => {
+        console.log('initializing', c.nft.id);
+
+        setupBuilder = setupBuilder
+        .add(initializeFromMint(umi, {
+          mintAccount: c.nft.id,
+          inscriptionShardAccount: randomShard(),
+        }))
+        .add(allocate(umi, {
+          inscriptionAccount: c.inscriptionPda[0],
+          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+          associatedTag: null,
+          targetSize: c.jsonLength,
+        }))
+        .add(initializeAssociatedInscription(umi, {
+          associationTag: 'image',
+          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+        }))
+        .add(allocate(umi, {
+          inscriptionAccount: c.imagePda,
+          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+          associatedTag: 'image',
+          targetSize: c.newImage.size,
+        }));
+
+        const imageData = imageDatas[index];
+        let i = 0;
+        let chunks = 0;
+        while (i < imageData.length) {
+          dataBuilder = dataBuilder.add(writeData(umi, {
+            inscriptionAccount: c.imagePda,
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            value: imageData.slice(i, i + chunkSize),
+            associatedTag: 'image',
+            offset: i,
+          }));
+          i += chunkSize;
+          chunks += 1;
+        }
+
+        console.log('image chunks', chunks);
+
+        const jsonData = enc.encode(JSON.stringify(c.json));
+        i = 0;
+        chunks = 0;
+        while (i < jsonData.length) {
+          dataBuilder = dataBuilder.add(writeData(umi, {
+            inscriptionAccount: c.inscriptionPda[0],
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            value: jsonData.slice(i, i + chunkSize),
+            associatedTag: null,
+            offset: i,
+          }));
+          i += chunkSize;
+          chunks += 1;
+        }
+        console.log('json chunks', chunks);
+      });
+
+      console.log('data ix length', dataBuilder.getInstructions().length);
+
+      const split = setupBuilder.unsafeSplitByTransactionSize(umi);
+      console.log('setup tx length', split.length);
+      const dataSplit = dataBuilder.unsafeSplitByTransactionSize(umi);
+      console.log('data tx length', dataSplit.length);
+      setMaxProgress(split.length + dataSplit.length);
+
+      const setupTxs = (await new TransactionBuilderGroup(split).setLatestBlockhash(umi)).build(umi);
+
+      const signedTxs = await signAllTransactions(setupTxs.map((tx => ({
+        transaction: tx,
+        signers: [umi.identity],
+      }))));
+
+      const errors = [];
+      const results: string[] = [];
+
+      await pMap(signedTxs, async (tx) => {
+        try {
+          const res = await umi.rpc.sendTransaction(tx);
+          const sig = signatureToString(res);
+          console.log('signature', sig);
+
+          setProgress((p) => p + 1);
+          results.push(sig);
+        } catch (e) {
+          console.log(e);
+          errors.push(tx);
+        }
       }, {
         concurrency: 2,
       });
+
+      const dataTxs = (await new TransactionBuilderGroup(dataSplit).setLatestBlockhash(umi)).build(umi);
+
+      console.log('data', summary.calculated);
+
+      const signedDataTxs = await signAllTransactions(dataTxs.map((tx => ({
+        transaction: tx,
+        signers: [umi.identity],
+      }))));
+
+      await pMap(signedDataTxs, async (tx) => {
+        try {
+          const res = await umi.rpc.sendTransaction(tx);
+          const sig = signatureToString(res);
+          console.log('signature', sig);
+
+          setProgress((p) => p + 1);
+          results.push(sig);
+        } catch (e) {
+          console.log(e);
+          errors.push(tx);
+          throw e;
+        }
+      }, {
+        concurrency: 2,
+      });
+
+      onComplete(results);
     } catch (e: any) {
+      console.log(e);
       notifications.show({
         title: 'Error inscribing',
         message: e.message,
@@ -191,7 +302,7 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
     } finally {
       close();
     }
-  }, [inscriptionSettings, setProgress]);
+  }, [summary, inscriptionSettings, setProgress, setMaxProgress, open, close, umi, onComplete]);
 
   return (
     <>
@@ -215,7 +326,7 @@ export function DoInscribe({ inscriptionSettings }: { inscriptionSettings: Inscr
             <Center>
               {summary && <Stack align="center">
                 <Progress value={(progress / summary.calculated.length) * 100} />
-                <Text>{progress} / {summary.calculated.length}</Text>
+                <Text>{progress} / {maxProgress}</Text>
                           </Stack>}
             </Center>
           </Stack>

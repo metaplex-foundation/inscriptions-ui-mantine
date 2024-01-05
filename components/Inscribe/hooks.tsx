@@ -24,7 +24,7 @@ export const useNftInscription = (nft: DasApiAsset) => {
   const umi = useUmi();
 
   return useQuery({
-    refetchOnMount: true,
+    // refetchOnMount: true,
     queryKey: ['fetch-nft-inscription', nft.id],
     queryFn: async () => {
       const inscriptionPda = findMintInscriptionPda(umi, { mint: nft.id });

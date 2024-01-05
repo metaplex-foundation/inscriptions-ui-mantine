@@ -1,15 +1,19 @@
-import { Box, Button, Group, Stepper } from '@mantine/core';
+import { Box, Button, Center, Grid, Paper, Stack, Stepper, Title } from '@mantine/core';
 import { useState } from 'react';
-import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
+import { CodeHighlightTabs } from '@mantine/code-highlight';
+import { IconWritingSign } from '@tabler/icons-react';
 import { NftSelector } from './NftSelector';
 import { ConfigureInscribe, InscriptionSettings } from './ConfigureInscribe';
 import { DoInscribe } from './DoInscribe';
+import { AssetWithInscription } from './types';
+import { NftCard } from './NftCard';
 
 export function Inscribe() {
   const [active, setActive] = useState(0);
   const [highestStepVisited, setHighestStepVisited] = useState(active);
-  const [selectedNfts, setSelectedNfts] = useState<DasApiAsset[]>([]);
+  const [selectedNfts, setSelectedNfts] = useState<AssetWithInscription[]>([]);
   const [inscriptionSettings, setInscriptionSettings] = useState<InscriptionSettings[]>();
+  const [txs, setTxs] = useState<string[]>();
 
   const handleStepChange = (nextStep: number) => {
     const isOutOfBounds = nextStep > 3 || nextStep < 0;
@@ -36,9 +40,9 @@ export function Inscribe() {
           <NftSelector
             selectedNfts={selectedNfts}
             onSelect={(nfts) => {
-            setSelectedNfts(nfts);
-            handleStepChange(active + 1);
-          }}
+              setSelectedNfts(nfts);
+              handleStepChange(active + 1);
+            }}
           />
         </Stepper.Step>
         <Stepper.Step
@@ -49,9 +53,9 @@ export function Inscribe() {
           <ConfigureInscribe
             selectedNfts={selectedNfts}
             onConfigure={(settings) => {
-            setInscriptionSettings(settings);
-            handleStepChange(active + 1);
-          }}
+              setInscriptionSettings(settings);
+              handleStepChange(active + 1);
+            }}
           />
         </Stepper.Step>
         <Stepper.Step
@@ -59,11 +63,56 @@ export function Inscribe() {
           description="Do it"
           allowStepSelect={shouldAllowSelectStep(2)}
         >
-          <DoInscribe inscriptionSettings={inscriptionSettings} />
+          <DoInscribe
+            inscriptionSettings={inscriptionSettings!}
+            onComplete={(txsRes) => {
+              setTxs(txsRes);
+              handleStepChange(active + 1);
+            }}
+          />
         </Stepper.Step>
 
         <Stepper.Completed>
-          Congratulations! You have inscribed your NFTs.
+          <Paper mt="lg" p="lg">
+            <Center>
+              <Stack align="center">
+                <Box w="50%">
+                  <IconWritingSign size="xl" color="var(--mantine-color-grape-5)" />
+                </Box>
+                <Title>Congratulations! You have inscribed your NFTs.</Title>
+                <Grid my="lg" w="100%" justify="center" gutter="lg">
+                  {selectedNfts.map((nft) => (
+                    <Grid.Col span={4}>
+                      <NftCard nft={nft} showLinks />
+                    </Grid.Col>))}
+                </Grid>
+                <Button
+                  mb="lg"
+                  onClick={() => {
+                    handleStepChange(0);
+                    setHighestStepVisited(0);
+                    setSelectedNfts([]);
+                    setInscriptionSettings(undefined);
+                    setTxs(undefined);
+                  }}
+                >Inscribe more
+                </Button>
+              </Stack>
+            </Center>
+            <CodeHighlightTabs
+              withExpandButton
+              expandCodeLabel="Show all transactions"
+              collapseCodeLabel="Show less"
+              defaultExpanded={false}
+              // withHeader={false}
+              mt="md"
+              mb="lg"
+              code={[{
+                fileName: 'transactions',
+                code: txs?.join('\n') || '',
+              }]}
+            />
+          </Paper>
         </Stepper.Completed>
       </Stepper>
     </Box>);

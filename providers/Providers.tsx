@@ -10,10 +10,12 @@ import { ReactQueryStreamedHydration } from '@tanstack/react-query-next-experime
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/Header/Header';
 import { UmiProvider } from './UmiProvider';
+import { EnvProvider } from './EnvProvider';
+import { Env } from './useEnv';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(new QueryClient());
-  const [env, setEnv] = useState('devnet');
+  const [env, setEnv] = useState<Env>('devnet');
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -33,31 +35,33 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [env]);
 
   return (
-    <ConnectionProvider endpoint={endpoint!}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <UmiProvider>
-            <QueryClientProvider client={client}>
-            <ReactQueryStreamedHydration>
-            <Notifications />
-            <AppShell
-              header={{ height: 80 }}
-              style={{
-                backgroundColor: '#1a1a1a',
-              }}
-            >
-              <AppShell.Header>
-                <Header env={env} setEnv={setEnv} />
-              </AppShell.Header>
-              <AppShell.Main>
-                {children}
-              </AppShell.Main>
-            </AppShell>
-            </ReactQueryStreamedHydration>
-            </QueryClientProvider>
-          </UmiProvider>
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+    <EnvProvider env={env!}>
+      <ConnectionProvider endpoint={endpoint!}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <UmiProvider>
+              <QueryClientProvider client={client}>
+              <ReactQueryStreamedHydration>
+              <Notifications />
+              <AppShell
+                header={{ height: 80 }}
+                style={{
+                  backgroundColor: '#1a1a1a',
+                }}
+              >
+                <AppShell.Header>
+                  <Header env={env} setEnv={setEnv} />
+                </AppShell.Header>
+                <AppShell.Main>
+                  {children}
+                </AppShell.Main>
+              </AppShell>
+              </ReactQueryStreamedHydration>
+              </QueryClientProvider>
+            </UmiProvider>
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </EnvProvider>
   );
 }
