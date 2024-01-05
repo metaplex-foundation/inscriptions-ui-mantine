@@ -233,7 +233,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
                     onClick={() => handleSelectCollection(key)}
                     className={classes.cardContainer}
                   >
-                    <NftCollectionCard collection={key} nfts={collections[key].nfts} numSelected={collections[key].selected} />
+                    <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
                   </Box>);
               })}
                        </>
