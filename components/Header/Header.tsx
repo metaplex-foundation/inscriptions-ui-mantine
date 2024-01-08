@@ -6,6 +6,7 @@ import Link from 'next/link';
 import classes from './Header.module.css';
 import { MetaplexLogo, MetaplexLogoVariant } from '../MetaplexLogo';
 import { Env } from '@/providers/useEnv';
+import { InscriptionCounter } from '../InscriptionCounter/inscriptionCounter';
 
 const HeaderLink = ({ label, link, disabled }: { label: string, link: string, disabled?: boolean }) => {
   const cls = disabled ? [classes.disabled, classes.link].join(' ') : classes.link;
@@ -31,6 +32,7 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
           <Title order={2}>Inscriptions</Title>
         </Flex>
         <Group>
+          <InscriptionCounter />
           <HeaderLink label="Inscribe" link="/inscribe" />
           <HeaderLink label="Manage" link="/manage" disabled />
           <WalletMultiButton />
