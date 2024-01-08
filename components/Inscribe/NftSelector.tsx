@@ -1,4 +1,4 @@
-import { Box, Button, Center, Checkbox, Group, Loader, SimpleGrid, Text } from '@mantine/core';
+import { Anchor, Box, Button, Center, Checkbox, Container, Group, Loader, Paper, SimpleGrid, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useQuery } from '@tanstack/react-query';
@@ -214,8 +214,14 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
         </Button>
 
       </Group>
-      {/* TODO: filter out all already inscribed NFTs */}
-      {isPending ? <Center h="50vh"><Loader /> </Center> :
+      {isPending ? <Center h="50vh"><Loader /> </Center> : !nfts?.length ?
+        <Container size="sm">
+          <Paper mt="xl">
+            <Center h="20vh">
+              <Text w="50%" ta="center">Don&apos;t have any NFTs? Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
+            </Center>
+          </Paper>
+        </Container> :
         <>
           <SimpleGrid
             cols={{
@@ -251,9 +257,9 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
                   <NftCard nft={nft} isSelected={selected.has(nft.id)} />
                 </Box>))}
           </SimpleGrid>
-          {collections[UNCATAGORIZED] && <Box mt="lg">
+          {/* {collections[UNCATAGORIZED] && <Box mt="lg">
             <Text>Uncheck &quot;Collate by collection&quot; to see <b>{collections[UNCATAGORIZED].nfts.length}</b> NFT(s) not in a collection</Text>
-                                         </Box>}
+                                         </Box>} */}
         </>}
     </>
   );

@@ -159,6 +159,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
     }
     try {
       open();
+      setProgress(0);
 
       // TODO remove this because we don't need it
       const shardAccounts = await Promise.all([...Array(32)].map((_, i) => fetchIdempotentInscriptionShard(umi, i)));
@@ -176,26 +177,26 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         console.log('initializing', c.nft.id);
 
         setupBuilder = setupBuilder
-        .add(initializeFromMint(umi, {
-          mintAccount: c.nft.id,
-          inscriptionShardAccount: randomShard(),
-        }))
-        .add(allocate(umi, {
-          inscriptionAccount: c.inscriptionPda[0],
-          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-          associatedTag: null,
-          targetSize: c.jsonLength,
-        }))
-        .add(initializeAssociatedInscription(umi, {
-          associationTag: 'image',
-          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-        }))
-        .add(allocate(umi, {
-          inscriptionAccount: c.imagePda,
-          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-          associatedTag: 'image',
-          targetSize: c.newImage.size,
-        }));
+          .add(initializeFromMint(umi, {
+            mintAccount: c.nft.id,
+            inscriptionShardAccount: randomShard(),
+          }))
+          .add(allocate(umi, {
+            inscriptionAccount: c.inscriptionPda[0],
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            associatedTag: null,
+            targetSize: c.jsonLength,
+          }))
+          .add(initializeAssociatedInscription(umi, {
+            associationTag: 'image',
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+          }))
+          .add(allocate(umi, {
+            inscriptionAccount: c.imagePda,
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            associatedTag: 'image',
+            targetSize: c.newImage.size,
+          }));
 
         const imageData = imageDatas[index];
         let i = 0;
@@ -251,7 +252,9 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
 
       await pMap(signedTxs, async (tx) => {
         try {
-          const res = await umi.rpc.sendTransaction(tx);
+          const res = await umi.rpc.sendTransaction(tx, {
+            commitment: 'finalized',
+          });
           const sig = signatureToString(res);
           console.log('signature', sig);
 
@@ -304,18 +307,20 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
     }
   }, [summary, inscriptionSettings, setProgress, setMaxProgress, open, close, umi, onComplete]);
 
+  console.log(progress, maxProgress);
+
   return (
     <>
       <Container size="sm" mt="lg">
         <Paper p="xl" radius="md">
           <Title order={2}>Summary</Title>
-          {!summary ? <Center h="20vh"><Loader /></Center>
-            : <Stack mt="md">
+          {!summary ? <Center h="20vh"><Loader /></Center> :
+            <Stack mt="md">
               <Text>Number of NFTs to inscribe: <b>{summary.calculated.length}</b></Text>
               <Text>Total Solana rent cost: <b>~{(summary.totalSize * 0.00000696).toFixed(4)} SOL</b></Text>
               <Text>Total Metaplex fees: <b>FREE</b> forever</Text>
               <Center><Button size="lg" onClick={handleInscribe}>Inscribe!</Button></Center>
-              </Stack>}
+            </Stack>}
         </Paper>
       </Container>
       <Modal opened={opened} onClose={() => { }} centered withCloseButton={false}>
@@ -323,11 +328,12 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
           <Stack gap="md" align="center">
             <Title order={3}>Inscribing...</Title>
             <Text>Be prepared to approve many transactions...</Text>
-            <Center>
-              {summary && <Stack align="center">
-                <Progress value={(progress / summary.calculated.length) * 100} />
-                <Text>{progress} / {maxProgress}</Text>
-                          </Stack>}
+            <Center w="100%">
+              {summary &&
+                <Stack w="100%">
+                  <Progress value={(progress / maxProgress) * 100} animated />
+                  <Text ta="center">{progress} / {maxProgress}</Text>
+                </Stack>}
             </Center>
           </Stack>
         </Center>

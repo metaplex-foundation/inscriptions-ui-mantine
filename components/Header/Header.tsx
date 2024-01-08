@@ -7,11 +7,14 @@ import classes from './Header.module.css';
 import { MetaplexLogo, MetaplexLogoVariant } from '../MetaplexLogo';
 import { Env } from '@/providers/useEnv';
 
-const HeaderLink = ({ label, link }: { label: string, link: string }) => (
-  <Link href={link} className={classes.link}>
-    {label}
-
-  </Link>);
+const HeaderLink = ({ label, link, disabled }: { label: string, link: string, disabled?: boolean }) => {
+  const cls = disabled ? [classes.disabled, classes.link].join(' ') : classes.link;
+  return (
+    <Link href={link} className={cls}>
+      {label}
+    </Link>
+  );
+};
 
 export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => void }) {
   return (
@@ -29,7 +32,7 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
         </Flex>
         <Group>
           <HeaderLink label="Inscribe" link="/inscribe" />
-          <HeaderLink label="Manage" link="/manage" />
+          <HeaderLink label="Manage" link="/manage" disabled />
           <WalletMultiButton />
           <Menu trigger="hover" transitionProps={{ exitDuration: 0 }} withinPortal>
             <Menu.Target>
