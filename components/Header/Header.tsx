@@ -32,7 +32,6 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
           <Title order={2}>Inscriptions</Title>
         </Flex>
         <Group>
-          <InscriptionCounter />
           <HeaderLink label="Inscribe" link="/inscribe" />
           <HeaderLink label="Manage" link="/manage" disabled />
           <WalletMultiButton />

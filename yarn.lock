@@ -14907,7 +14907,6 @@ __metadata:
     stylelint-config-standard-scss: "npm:^11.1.0"
     ts-jest: "npm:^29.1.1"
     typescript: "npm:5.2.2"
-    use-interval: "npm:^1.4.0"
   languageName: unknown
   linkType: soft
 
@@ -19853,15 +19852,6 @@ __metadata:
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0
   checksum: e64ce52f4b18c020407636784192726807404a2552609acf7497b66a2b7070674fb5d2b950d426c4aa85f353e2bbecb02ebf9c5b865cd06797938c70bcbf5d26
-  languageName: node
-  linkType: hard
-
-"use-interval@npm:^1.4.0":
-  version: 1.4.0
-  resolution: "use-interval@npm:1.4.0"
-  peerDependencies:
-    react: ">=16.8.0 || ^17"
-  checksum: 08f544f3cb3eca16569918d7f974f010a6f7c532a293afaaec91dc0bd299b06e4a777bf15f516ce9ee2c649fbc67242c2849ea732a2646e0bc7fc4e8cc3b5cae
   languageName: node
   linkType: hard
 
