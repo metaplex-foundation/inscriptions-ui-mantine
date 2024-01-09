@@ -1,11 +1,13 @@
-import { Center, Container, Flex, Group, Menu, Title } from '@mantine/core';
+import { Center, Container, Flex, Group, Menu, NumberFormatter, Title } from '@mantine/core';
 import { IconChevronDown } from '@tabler/icons-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import classes from './Header.module.css';
 import { MetaplexLogo, MetaplexLogoVariant } from '../MetaplexLogo';
 import { Env } from '@/providers/useEnv';
+import { useInscriptionCounter } from '@/providers/useInscriptionCounter';
 
 const HeaderLink = ({ label, link, disabled }: { label: string, link: string, disabled?: boolean }) => {
   const cls = disabled ? [classes.disabled, classes.link].join(' ') : classes.link;
@@ -17,6 +19,9 @@ const HeaderLink = ({ label, link, disabled }: { label: string, link: string, di
 };
 
 export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => void }) {
+  const pathname = usePathname();
+  const { count } = useInscriptionCounter();
+
   return (
     <Container
       size="lg"
@@ -29,6 +34,10 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
             <MetaplexLogo variant={MetaplexLogoVariant.Small} />
           </Link>
           <Title order={2}>Inscriptions</Title>
+          {pathname !== '/' &&
+            <Title c="red" fw={900} order={3}>
+              <NumberFormatter prefix="# " value={count} thousandSeparator />
+            </Title>}
         </Flex>
         <Group>
           <HeaderLink label="Inscribe" link="/inscribe" />

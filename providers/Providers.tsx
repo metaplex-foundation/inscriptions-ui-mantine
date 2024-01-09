@@ -12,6 +12,7 @@ import { Header } from '@/components/Header/Header';
 import { UmiProvider } from './UmiProvider';
 import { EnvProvider } from './EnvProvider';
 import { Env } from './useEnv';
+import { InscriptionCounterProvider } from './InscriptionCounterProvider';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(new QueryClient());
@@ -41,22 +42,24 @@ export function Providers({ children }: { children: ReactNode }) {
           <WalletModalProvider>
             <UmiProvider>
               <QueryClientProvider client={client}>
-              <ReactQueryStreamedHydration>
-              <Notifications />
-              <AppShell
-                header={{ height: 80 }}
-                style={{
-                  backgroundColor: '#1a1a1a',
-                }}
-              >
-                <AppShell.Header>
-                  <Header env={env} setEnv={setEnv} />
-                </AppShell.Header>
-                <AppShell.Main>
-                  {children}
-                </AppShell.Main>
-              </AppShell>
-              </ReactQueryStreamedHydration>
+                <ReactQueryStreamedHydration>
+                  <InscriptionCounterProvider>
+                    <Notifications />
+                    <AppShell
+                      header={{ height: 80 }}
+                      style={{
+                        backgroundColor: '#1a1a1a',
+                      }}
+                    >
+                      <AppShell.Header>
+                        <Header env={env} setEnv={setEnv} />
+                      </AppShell.Header>
+                      <AppShell.Main>
+                        {children}
+                      </AppShell.Main>
+                    </AppShell>
+                  </InscriptionCounterProvider>
+                </ReactQueryStreamedHydration>
               </QueryClientProvider>
             </UmiProvider>
           </WalletModalProvider>
