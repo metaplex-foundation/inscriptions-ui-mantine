@@ -36,7 +36,7 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
           <Title order={2}>Inscriptions</Title>
           {pathname !== '/' &&
             <Title c="red" fw={900} order={3}>
-              <NumberFormatter value={count} thousandSeparator />
+              <NumberFormatter prefix="# " value={count} thousandSeparator />
             </Title>}
         </Flex>
         <Group>
