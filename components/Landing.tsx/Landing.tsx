@@ -4,7 +4,7 @@ import { Image, Container, Title, Button, Group, Text, List, ThemeIcon, rem, Box
 import { IconNotes } from '@tabler/icons-react';
 import Link from 'next/link';
 import classes from './Landing.module.css';
-import { InscriptionCounter } from '../InscriptionCounter/inscriptionCounter';
+import { InscriptionCounterHero } from '../InscriptionCounter/inscriptionCounterHero';
 
 const links: { label: string; href: string }[] = [
   { label: 'MPL Repository', href: 'https://github.com/metaplex-foundation/mpl-inscription' },
@@ -70,7 +70,7 @@ export function Landing() {
       </Container>
       <Box bg="rgb(36, 36, 36)" py="xl">
         <Container size="md" py="xl">
-          <InscriptionCounter />
+          <InscriptionCounterHero />
         </Container>
       </Box>
     </>

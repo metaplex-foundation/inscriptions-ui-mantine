@@ -1,13 +1,16 @@
-import { Box, NumberFormatter, Text, Title } from '@mantine/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+
 import { Pda } from '@metaplex-foundation/umi';
 import { fetchAllInscriptionShard, findInscriptionShardPda } from '@metaplex-foundation/mpl-inscription';
 import { useInterval } from '@mantine/hooks';
-import { useUmi } from '@/providers/useUmi';
+import { useUmi } from './useUmi';
+import { InscriptionCounterContext } from './useInscriptionCounter';
 
-import classes from './InscriptionCounter.module.css';
-
-export function InscriptionCounter() {
+export const InscriptionCounterProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
   const [count, setCount] = useState(0);
   const umi = useUmi();
 
@@ -39,13 +42,5 @@ export function InscriptionCounter() {
     return interval.stop;
   }, []);
 
-  return (
-    <Box ta="center">
-      <Text>Current Inscription Number</Text>
-      <Title c="red" fw={900} className={classes.counter}>
-        <NumberFormatter value={count} thousandSeparator />
-      </Title>
-      <Text>Inscribe an NFT to claim your number!</Text>
-    </Box>
-  );
-}
+ return <InscriptionCounterContext.Provider value={{ count }}>{children}</InscriptionCounterContext.Provider>;
+};
