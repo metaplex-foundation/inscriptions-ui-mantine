@@ -57,7 +57,7 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
               </a>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item disabled onClick={() => setEnv('mainnet-beta')}>Mainnet Beta</Menu.Item>
+              <Menu.Item onClick={() => setEnv('mainnet-beta')}>Mainnet Beta</Menu.Item>
               <Menu.Item onClick={() => setEnv('devnet')}>Devnet</Menu.Item>
             </Menu.Dropdown>
           </Menu>
