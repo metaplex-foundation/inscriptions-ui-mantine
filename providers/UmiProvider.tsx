@@ -3,7 +3,7 @@ import { walletAdapterIdentity } from '@metaplex-foundation/umi-signer-wallet-ad
 import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { ReactNode, useMemo } from 'react';
-import { MplInscription } from '@metaplex-foundation/mpl-inscription';
+import { mplInscription } from '@metaplex-foundation/mpl-inscription';
 import { dasApi } from '@metaplex-foundation/digital-asset-standard-api';
 import { UmiContext } from './useUmi';
 
