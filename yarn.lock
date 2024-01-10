@@ -2746,15 +2746,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metaplex-foundation/mpl-inscription@npm:^0.5.2":
-  version: 0.5.2
-  resolution: "@metaplex-foundation/mpl-inscription@npm:0.5.2"
+"@metaplex-foundation/mpl-inscription@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "@metaplex-foundation/mpl-inscription@npm:0.6.0"
   dependencies:
     "@metaplex-foundation/mpl-token-metadata": "npm:^3.1.2"
     "@metaplex-foundation/mpl-toolbox": "npm:^0.8.0"
   peerDependencies:
     "@metaplex-foundation/umi": ^0.8.2
-  checksum: 33a17950effe3a379dc41740a0cc69c7bafca376a12c257678068d3be97e7dc3190f8390e23843b1b808cdfecaab35191251cbded2b05f77d6e5492aa3c44344
+  checksum: 13304b9043d4b3314fdbc95b2bd19fd707e41a9e877639e51b91fda150b08b0a74aa41df407573ff162770529ad5617509db9d8d9217f316da5e6c1669ce7286
   languageName: node
   linkType: hard
 
@@ -14842,7 +14842,7 @@ __metadata:
     "@mantine/tiptap": "npm:^7.3.2"
     "@metaplex-foundation/digital-asset-standard-api": "npm:^1.0.0"
     "@metaplex-foundation/mpl-engraver": "npm:^0.2.3"
-    "@metaplex-foundation/mpl-inscription": "npm:^0.5.2"
+    "@metaplex-foundation/mpl-inscription": "npm:^0.6.0"
     "@metaplex-foundation/mpl-token-metadata": "npm:3.2.0-alpha.0"
     "@metaplex-foundation/mpl-toolbox": "npm:^0.9.1"
     "@metaplex-foundation/umi": "npm:^0.8.10"
