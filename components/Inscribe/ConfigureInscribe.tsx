@@ -1,7 +1,7 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UseFormReturnType, useForm } from '@mantine/form';
-import { Badge, Box, Button, Card, Center, Checkbox, Group, Image, Loader, SegmentedControl, SimpleGrid, Skeleton, Slider, Stack, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Box, Button, Card, Center, Checkbox, FileInput, Group, Image, Loader, SegmentedControl, SimpleGrid, Skeleton, Slider, Stack, Text, ThemeIcon } from '@mantine/core';
 import { CodeHighlightTabs } from '@mantine/code-highlight';
 import prettyBytes from 'pretty-bytes';
 import Compressor from 'compressorjs';
@@ -19,10 +19,34 @@ interface Settings {
   disabled: boolean
 }
 
-function Row({ nft, form, counter }: { nft: DasApiAsset, form: UseFormReturnType<{ [key: string]: Settings }>, counter?: number }) {
-  const { json, image, isPending } = useNftJsonWithImage(nft);
+function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: UseFormReturnType<{ [key: string]: Settings }>, counter?: number, overrideable?: boolean }) {
+  const { json: loadedJson, image: loadedImage, isPending } = useNftJsonWithImage(nft);
+  const [jsonOverrideFile, setJsonOverrideFile] = useState<File | null>();
+  const [imageOverrideFile, setImageOverrideFile] = useState<File | null>();
   const [imageInfo, setImageInfo] = useState<{ width: number, height: number }>();
   const [previewInfo, setPreviewInfo] = useState<{ type: string, width: number, height: number, size: number, image: Blob | File }>();
+  const [json, setJson] = useState<any>();
+  const [image, setImage] = useState<Blob | null | undefined>();
+
+  useEffect(() => {
+    if (jsonOverrideFile) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setJson(JSON.parse(e.target?.result as string));
+      };
+      reader.readAsText(jsonOverrideFile);
+    } else {
+      setJson(loadedJson);
+    }
+  }, [jsonOverrideFile, loadedJson]);
+
+  useEffect(() => {
+    if (imageOverrideFile) {
+      setImage(imageOverrideFile);
+    } else {
+      setImage(loadedImage);
+    }
+  }, [imageOverrideFile, loadedImage]);
 
   const stats = useMemo(() => {
     if (isPending) {
@@ -133,7 +157,7 @@ function Row({ nft, form, counter }: { nft: DasApiAsset, form: UseFormReturnType
           <Card.Section>
             <Skeleton visible={!image}>
               <Image
-                src={json?.image}
+                src={imageOverrideFile ? URL.createObjectURL(imageOverrideFile) : loadedJson?.image}
                 height={320}
                 onLoad={(e: any) => setImageInfo({ width: e.target.naturalWidth, height: e.target.naturalHeight })}
               />
@@ -166,6 +190,8 @@ function Row({ nft, form, counter }: { nft: DasApiAsset, form: UseFormReturnType
             }}
           >{counter}
                       </Badge>}
+        {overrideable && <FileInput label="JSON Override" onChange={setJsonOverrideFile} />}
+        {overrideable && <FileInput label="Image Override" onChange={setImageOverrideFile} />}
         </Card>
       </Skeleton>
       <Box p="md">
@@ -329,7 +355,7 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
     </Group>
     <Stack gap="lg">
       {collate ? Object.keys(cGroups).map((collection) => <Row key={collection} nft={cGroups[collection].nfts[0]} form={form} counter={cGroups[collection].nfts.length} />) : selectedNfts.map((nft) => (
-        <Row nft={nft} form={form} key={nft.id} />
+        <Row nft={nft} form={form} key={nft.id} overrideable />
       ))}
     </Stack>
          </>;
