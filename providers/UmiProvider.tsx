@@ -23,7 +23,7 @@ export const UmiProvider = ({
     .use(walletAdapterIdentity(wallet))
     .use(mplTokenMetadata())
     .use(dasApi())
-    .use(MplInscription()), [wallet, connection]);
+    .use(mplInscription()), [wallet, connection]);
 
   return <UmiContext.Provider value={{ umi }}>{children}</UmiContext.Provider>;
 };
