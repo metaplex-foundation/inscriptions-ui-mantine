@@ -32,7 +32,7 @@
     "@mantine/tiptap": "^7.3.2",
     "@metaplex-foundation/digital-asset-standard-api": "^1.0.0",
     "@metaplex-foundation/mpl-engraver": "^0.2.3",
-    "@metaplex-foundation/mpl-inscription": "^0.6.0",
+    "@metaplex-foundation/mpl-inscription": "^0.7.0",
     "@metaplex-foundation/mpl-token-metadata": "3.2.0-alpha.0",
     "@metaplex-foundation/mpl-toolbox": "^0.9.1",
     "@metaplex-foundation/umi": "^0.8.10",
