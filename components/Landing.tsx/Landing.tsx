@@ -13,7 +13,7 @@ const links: { label: string; href: string }[] = [
   { label: 'Rust SDK', href: 'https://github.com/metaplex-foundation/mpl-inscription/tree/main/clients/rust' },
   {
     label: 'Inscriptions CLI',
-    href: '',
+    href: 'https://github.com/metaplex-foundation/mpl-inscription/tree/main/clients/cli',
   },
 ];
 
@@ -47,7 +47,7 @@ export function Landing() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >here
-                                 </a>
+                  </a>
                 </List.Item>
               ))}
             </List>
