@@ -416,10 +416,6 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
     form.setValues(values);
   }, [selectedNfts]);
 
-  // useEffect(() => {
-  //  reset()
-  // }, [selectedNfts]);
-
   useEffect(() => {
     if (collate) {
       reset();
