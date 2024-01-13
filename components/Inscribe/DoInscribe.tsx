@@ -43,7 +43,6 @@ type Calculated = {
   quality: number;
   size: number;
   format: string;
-  disabled: boolean;
   inscriptionPda: Pda;
   inscriptionMetadataAccount: Pda;
   imagePda: Pda;
@@ -63,22 +62,29 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
     const doIt = async () => {
       // we recalculate everything because of collation
       const calculated: Calculated[] = await pMap(inscriptionSettings, async (settings) => {
-        const { nft, disabled, format, quality, size } = settings;
-        const json = await client.fetchQuery({
-          queryKey: ['fetch-nft-json', settings.nft.id],
-          queryFn: async () => {
-            const j = await (await fetch(nft.content.json_uri)).json();
-            return j;
-          },
-        });
+        const { nft, format, quality, size, imageCompressionEnabled, jsonOverride, imageOverride } = settings;
 
-        const image = await client.fetchQuery({
-          queryKey: ['fetch-uri-blob', json.image],
-          queryFn: async () => {
-            const blob = await (await fetch(json.image)).blob();
-            return blob;
-          },
-        });
+        let json = jsonOverride;
+        if (!json) {
+          json = await client.fetchQuery({
+            queryKey: ['fetch-nft-json', settings.nft.id],
+            queryFn: async () => {
+              const j = await (await fetch(nft.content.json_uri)).json();
+              return j;
+            },
+          });
+        }
+
+        let image = imageOverride;
+        if (!image) {
+          image = await client.fetchQuery({
+            queryKey: ['fetch-uri-blob', json.image],
+            queryFn: async () => {
+              const blob = await (await fetch(json.image)).blob();
+              return blob;
+            },
+          });
+        }
 
         const inscriptionData = await client.fetchQuery({
           queryKey: ['fetch-nft-inscription', nft.id],
@@ -103,13 +109,13 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
           },
         });
 
-        let newImage: Blob | File = image;
-        if (!disabled) {
+        let newImage: Blob | File = image as Blob;
+        if (imageCompressionEnabled) {
           // TODO optimize, only download headers
           const { width, height } = await sizeOf(image);
           newImage = await new Promise((resolve, reject) => {
             // eslint-disable-next-line no-new
-            new Compressor(image, {
+            new Compressor(image as Blob, {
               quality: quality / 100,
               width: width * (size / 100),
               height: height * (size / 100),
@@ -126,10 +132,13 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
 
         return {
           ...inscriptionData,
-          ...settings,
           json,
           jsonLength: JSON.stringify(json).length,
           newImage,
+          quality,
+          size,
+          nft,
+          format,
         };
       }, {
         concurrency: 5,
