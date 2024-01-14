@@ -12,6 +12,7 @@ import { base58 } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionSettings } from './ConfigureInscribe';
 
+const MAX_PERMITTED_DATA_INCREASE = 10_240;
 const sizeOf = require('browser-image-size');
 
 async function fetchIdempotentInscriptionShard(umi: Umi, number = Math.floor(Math.random() * 32)) {
@@ -62,7 +63,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
     const doIt = async () => {
       // we recalculate everything because of collation
       const calculated: Calculated[] = await pMap(inscriptionSettings, async (settings) => {
-        const { nft, format, quality, size, imageCompressionEnabled, jsonOverride, imageOverride, imageOverrideEnabled } = settings;
+        const { nft, format, quality, size, imageType, jsonOverride, imageOverride } = settings;
 
         let json = jsonOverride;
         if (!json) {
@@ -76,7 +77,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         }
 
         let image = imageOverride;
-        if (!imageOverrideEnabled && !image) {
+        if (imageType === 'Raw' || imageType === 'Compress') {
           image = await client.fetchQuery({
             queryKey: ['fetch-uri-blob', json.image],
             queryFn: async () => {
@@ -109,7 +110,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
           },
         });
 
-        if (image && imageCompressionEnabled) {
+        if (image && imageType === 'Compress') {
           // TODO optimize, only download headers
           const { width, height } = await sizeOf(image);
           image = await new Promise((resolve, reject) => {
@@ -195,23 +196,28 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
             associatedTag: null,
             targetSize: c.jsonLength,
           }));
-        let i = 0;
-        let chunks = 0;
+
         if (c.newImage) {
           setupBuilder = setupBuilder
             .add(initializeAssociatedInscription(umi, {
               associationTag: 'image',
               inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-            }))
-            .add(allocate(umi, {
+            }));
+
+          // we need to call allocate multiple times because Solana accounts can only be allocated at most 10k at a time
+          const numAllocates = Math.ceil(c.newImage.size / MAX_PERMITTED_DATA_INCREASE);
+          for (let j = 0; j < numAllocates; j += 1) {
+            setupBuilder = setupBuilder.add(allocate(umi, {
               inscriptionAccount: c.imagePda,
               inscriptionMetadataAccount: c.inscriptionMetadataAccount,
               associatedTag: 'image',
               targetSize: c.newImage.size,
             }));
+          }
 
           const imageData = imageDatas[index] as Uint8Array;
-
+          let i = 0;
+          let chunks = 0;
           while (i < imageData.length) {
             dataBuilder = dataBuilder.add(writeData(umi, {
               inscriptionAccount: c.imagePda,
@@ -227,8 +233,8 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         }
 
         const jsonData = enc.encode(JSON.stringify(c.json));
-        i = 0;
-        chunks = 0;
+        let i = 0;
+        let chunks = 0;
         while (i < jsonData.length) {
           dataBuilder = dataBuilder.add(writeData(umi, {
             inscriptionAccount: c.inscriptionPda[0],

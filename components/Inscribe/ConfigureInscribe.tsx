@@ -1,12 +1,12 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UseFormReturnType, useForm } from '@mantine/form';
-import { Badge, Box, Button, Card, Center, Checkbox, Group, Image, Loader, SegmentedControl, SimpleGrid, Skeleton, Slider, Stack, Switch, Text, ThemeIcon } from '@mantine/core';
+import { Badge, Box, Button, Card, Center, Checkbox, Grid, Group, Image, Loader, SegmentedControl, Select, Skeleton, Slider, Stack, Tabs, Text, ThemeIcon, rem } from '@mantine/core';
 import { CodeHighlightTabs } from '@mantine/code-highlight';
 import prettyBytes from 'pretty-bytes';
 import Compressor from 'compressorjs';
 import { notifications } from '@mantine/notifications';
-import { IconArrowDown } from '@tabler/icons-react';
+import { IconArrowDown, IconBraces, IconPhoto } from '@tabler/icons-react';
 import { MIME_TYPES } from '@mantine/dropzone';
 import { useNftJsonWithImage } from './hooks';
 
@@ -18,12 +18,9 @@ interface Settings {
   quality: number;
   size: number;
   format: string;
-  imageCompressionEnabled: boolean
-  jsonOverrideEnabled: boolean
+  imageType: 'Compress' | 'Raw' | 'Override' | 'None'
   jsonOverride?: any
-  imageOverrideEnabled: boolean
   imageOverride?: Blob | File
-  imageOverrideNone?: boolean
 }
 
 interface PreviewInfo { type: string, width: number, height: number, size: number, image: Blob | File }
@@ -39,10 +36,8 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
     quality,
     size,
     format,
-    imageOverrideEnabled,
-    imageOverrideNone,
+    imageType,
     imageOverride,
-    jsonOverrideEnabled,
     jsonOverride,
   } = form.values[nft.id];
 
@@ -68,25 +63,11 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
   }, []);
 
   useEffect(() => {
-    form.setFieldValue(`${nft.id}.imageCompressionEnabled`, !form.values[nft.id].imageOverrideEnabled as any);
-    if (!form.values[nft.id].imageOverrideEnabled) {
+    if (form.values[nft.id].imageType === 'Override') {
       setOverrideImageInfo(undefined);
       form.setFieldValue(`${nft.id}.imageOverride`, undefined as any);
     }
-  }, [form.values[nft.id].imageOverrideEnabled]);
-
-  useEffect(() => {
-    if (form.values[nft.id].imageOverrideNone) {
-      setOverrideImageInfo(undefined);
-      form.setFieldValue(`${nft.id}.imageOverride`, undefined as any);
-    }
-  }, [form.values[nft.id].imageOverrideNone]);
-
-  useEffect(() => {
-    if (!form.values[nft.id].jsonOverrideEnabled) {
-      form.setFieldValue(`${nft.id}.jsonOverride`, undefined as any);
-    }
-  }, [form.values[nft.id].jsonOverrideEnabled]);
+  }, [form.values[nft.id].imageType]);
 
   const stats = useMemo(() => {
     if (isPending) {
@@ -157,21 +138,21 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
         });
       },
     });
-  }, [imageInfo, setPreviewInfo, image]);
+  }, [imageInfo, setPreviewInfo, image, quality, size]);
 
   const outputStats = useMemo(() => {
-    if (isPending || (imageOverrideEnabled && imageOverride ? !overrideImageInfo : !previewInfo)) {
+    if (isPending || (imageType === 'Override' && imageOverride ? !overrideImageInfo : !previewInfo)) {
       return <Center><Loader /></Center>;
     }
 
-    if ((!json && !jsonOverride) || (!image && !imageOverride && !imageOverrideNone)) {
+    if ((!json && !jsonOverride) || (!image && !imageOverride && imageType !== 'None')) {
       return <Text>Unable to load stats</Text>;
     }
 
     const j = jsonOverride ?? json;
     const jsonLength = JSON.stringify(j).length;
 
-    const iInfo = imageOverrideEnabled ? overrideImageInfo : previewInfo;
+    const iInfo = imageType === 'Override' ? overrideImageInfo : previewInfo;
 
     return [{
       label: 'Size',
@@ -190,171 +171,30 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
         <Text className={classes.label}>{label}</Text>
         <Text className={classes.value}>{stat}</Text>
       </Box>));
-  }, [isPending, json, image, previewInfo, imageOverride, overrideImageInfo, jsonOverride, imageOverrideEnabled]);
+  }, [isPending, json, image, previewInfo, imageOverride, overrideImageInfo, jsonOverride, imageType]);
 
-  const disabled = !form.values[nft.id]?.imageCompressionEnabled;
+  const imageTypeOptions = useMemo(() => overrideable ? ['Compress', 'Raw', 'Override', 'None'] : ['Compress', 'Raw', 'None'], [overrideable]);
+
+  const iconStyle = { width: rem(12), height: rem(12) };
   return (
-    <SimpleGrid cols={3}>
-      <Skeleton visible={isPending}>
-        <Card shadow="sm" padding="lg" radius="md">
-          <Card.Section>
-            <Skeleton visible={!image}>
-              <Image
-                src={json?.image}
-                height={320}
-                onLoad={(e: any) => setImageInfo({ width: e.target.naturalWidth, height: e.target.naturalHeight })}
-              />
-            </Skeleton>
-          </Card.Section>
-          <Group justify="space-between" mt="md">
-            <Text fw={500}>{nft.content.metadata.name}</Text>
-          </Group>
-
-          {json && <CodeHighlightTabs
-            withExpandButton
-            expandCodeLabel="Show full JSON"
-            collapseCodeLabel="Show less"
-            defaultExpanded={false}
-            mt="md"
-            mb="lg"
-            code={[{
-              fileName: 'metadata.json',
-              language: 'json',
-              code: JSON.stringify(json, null, 2),
-            }]}
-          />}
-          {counter &&
-            <Badge
-              variant="default"
-              style={{
-                position: 'absolute',
-                top: '0.5rem',
-                right: '0.5rem',
-
-              }}
-            >{counter}
-            </Badge>}
-        </Card>
-      </Skeleton>
-      <Box p="md">
-        {/* <Text
-          size="lg"
-          style={{
-            textOverflow: 'ellipsis',
-            overflow: 'hidden',
-          }}
-        >{nft.id}
-        </Text> */}
-        <Switch
-          label="Enable image size reduction"
-          disabled={imageOverrideEnabled}
-          {...form.getInputProps(`${nft.id}.imageCompressionEnabled`, { type: 'checkbox' })}
-        />
-        {!disabled &&
-          <>
-            <Text size="sm" mt="md">Output format</Text>
-            <SegmentedControl
-              mt="xs"
-              data={['image/jpeg', 'image/png']}
-              {...form.getInputProps(`${nft.id}.format`)}
-            />
-
-            <Text size="sm" mt="md">Size: {size}%</Text>
-            <Slider
-              marks={[
-                { value: 25, label: '25%' },
-                { value: 50, label: '50%' },
-                { value: 75, label: '75%' },
-              ]}
-              {...form.getInputProps(`${nft.id}.size`)}
-            />
-            <Text size="sm" pt="xl">Quality: {quality}%</Text>
-            <Slider
-              mb="xl"
-              disabled={format === 'image/png'}
-              marks={[
-                { value: 25, label: '25%' },
-                { value: 50, label: '50%' },
-                { value: 75, label: '75%' },
-              ]}
-              {...form.getInputProps(`${nft.id}.quality`)}
-            />
-          </>}
-
-        {overrideable &&
-          <>
-            <Switch
-              mt="md"
-              label="Override JSON"
-              {...form.getInputProps(`${nft.id}.jsonOverrideEnabled`, { type: 'checkbox' })}
-            />
-            {jsonOverrideEnabled && (!jsonOverride ?
-              <Box my="md">
-                <DropzoneButton mimeTypes={['application/json']} onDrop={onJsonOverride} name="JSON" />
-              </Box> : <Button mt="md" color="gray" onClick={() => form.setFieldValue(`${nft.id}.jsonOverride`, undefined as any)}>Remove JSON</Button>)}
-            <Switch
-              mt="md"
-              label="Override image"
-              {...form.getInputProps(`${nft.id}.imageOverrideEnabled`, { type: 'checkbox' })}
-            />
-            {imageOverrideEnabled &&
-            <>
-              {!imageOverrideNone && (!imageOverride ?
-              <Box mt="md">
-                <DropzoneButton
-                  mimeTypes={[MIME_TYPES.gif, MIME_TYPES.jpeg, MIME_TYPES.png]}
-                  name="image"
-                  onDrop={(files) => form.setFieldValue(`${nft.id}.imageOverride`, files[0] as any)}
-                />
-              </Box> : <Button mt="md" color="gray" onClick={() => form.setFieldValue(`${nft.id}.imageOverride`, undefined as any)}>Remove image</Button>)}
-              <Checkbox mt="md" {...form.getInputProps(`${nft.id}.imageOverrideNone`, { type: 'checkbox' })} label="Skip image inscription" />
-            </>}
-          </>}
-      </Box>
-      <Card shadow="sm" padding="xl" radius="md">
-        <Stack justify="space-between" h="100%">
-          <Box>
-            <Text size="lg" mb="sm">Original</Text>
-            <Group justify="space-between">
-              {stats}
-            </Group>
-          </Box>
-          {!imageOverrideEnabled && !jsonOverrideEnabled &&
-            <Center>
-              <Stack gap="xs" ta="center" align="center">
-                <Text>Cost reduction</Text>
-                {disabled ? <Text size="xl" color="grey">0%</Text>
-                  : <>
-                    <Text color="green" size="xl"><b>{(spaceSaved * 100).toFixed(2)}%</b></Text>
-                    <ThemeIcon size="lg" color="green" radius="xl" mt="lg">
-                      <IconArrowDown size={24} />
-                    </ThemeIcon>
-                    </>}
-              </Stack>
-            </Center>}
-          <Stack>
-            <Text size="lg">{!imageOverrideEnabled ? 'Downsampled' : imageOverrideNone ? 'JSON only' : 'New image' }</Text>
-            {previewInfo?.image && !disabled
-              && <Image src={URL.createObjectURL(previewInfo.image)} height={previewInfo.height} w={previewInfo.width} />}
-            {imageOverrideEnabled && !imageOverrideNone &&
-              <Skeleton visible={!imageOverride}>
+    <Grid>
+      <Grid.Col span={3}>
+        <Skeleton visible={isPending} h="100%">
+          <Card shadow="sm" padding="lg" radius="md" h="100%">
+            <Card.Section>
+              <Skeleton visible={!image}>
                 <Image
-                  src={imageOverride && URL.createObjectURL(imageOverride)}
+                  src={json?.image}
                   height={320}
-                  onLoad={(e: any) => {
-                    if (imageOverride && (overrideImageInfo?.image as File)?.name !== (imageOverride as File)?.name) {
-                      setOverrideImageInfo({
-                        width: e.target.naturalWidth,
-                        height: e.target.naturalHeight,
-                        size: imageOverride.size,
-                        type: imageOverride.type,
-                        image: imageOverride,
-                      });
-                    }
-                  }}
+                  onLoad={(e: any) => setImageInfo({ width: e.target.naturalWidth, height: e.target.naturalHeight })}
                 />
-              </Skeleton>}
-            {jsonOverride && <CodeHighlightTabs
+              </Skeleton>
+            </Card.Section>
+            <Group justify="space-between" mt="md">
+              <Text fw={500}>{nft.content.metadata.name}</Text>
+            </Group>
+
+            {json && <CodeHighlightTabs
               withExpandButton
               expandCodeLabel="Show full JSON"
               collapseCodeLabel="Show less"
@@ -364,17 +204,165 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
               code={[{
                 fileName: 'metadata.json',
                 language: 'json',
-                code: JSON.stringify(jsonOverride, null, 2),
+                code: JSON.stringify(json, null, 2),
               }]}
             />}
+            {counter &&
+              <Badge
+                variant="default"
+                style={{
+                  position: 'absolute',
+                  top: '0.5rem',
+                  right: '0.5rem',
 
-            <Group justify="space-between">
-              {disabled && !imageOverrideEnabled && !jsonOverrideEnabled ? stats : outputStats}
-            </Group>
+                }}
+              >{counter}
+              </Badge>}
+          </Card>
+        </Skeleton>
+      </Grid.Col>
+      <Grid.Col span={6}>
+        <Tabs defaultValue="image">
+          <Tabs.List mb="md">
+            <Tabs.Tab value="image" leftSection={<IconPhoto style={iconStyle} />}>
+              Image
+            </Tabs.Tab>
+            <Tabs.Tab value="json" leftSection={<IconBraces style={iconStyle} />}>
+              JSON
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="image">
+            <Select label="Image inscription mode" data={imageTypeOptions} {...form.getInputProps(`${nft.id}.imageType`)} />
+            {imageType === 'Compress' &&
+              <>
+                <Text size="sm" mt="md">Output format</Text>
+                <SegmentedControl
+                  data={['image/jpeg', 'image/png']}
+                  {...form.getInputProps(`${nft.id}.format`)}
+                />
+
+                <Text size="sm" mt="md">Size: {size}%</Text>
+                <Slider
+                  marks={[
+                    { value: 25, label: '25%' },
+                    { value: 50, label: '50%' },
+                    { value: 75, label: '75%' },
+                  ]}
+                  {...form.getInputProps(`${nft.id}.size`)}
+                />
+                <Text size="sm" pt="xl">Quality: {quality}%</Text>
+                <Slider
+                  mb="xl"
+                  disabled={format === 'image/png'}
+                  marks={[
+                    { value: 25, label: '25%' },
+                    { value: 50, label: '50%' },
+                    { value: 75, label: '75%' },
+                  ]}
+                  {...form.getInputProps(`${nft.id}.quality`)}
+                />
+              </>}
+            {imageType === 'None' &&
+              <Text mt="md">Skip the image inscription step</Text>
+            }
+            {imageType === 'Raw' &&
+              <Text mt="md">Inscribe the raw image from the existing NFT</Text>
+            }
+            {imageType === 'Override' &&
+              <>
+                {!imageOverride ?
+                  <Box mt="md">
+                    <DropzoneButton
+                      mimeTypes={[MIME_TYPES.gif, MIME_TYPES.jpeg, MIME_TYPES.png]}
+                      name="image"
+                      onDrop={(files) => form.setFieldValue(`${nft.id}.imageOverride`, files[0] as any)}
+                    />
+                  </Box> : <Button mt="md" color="gray" onClick={() => form.setFieldValue(`${nft.id}.imageOverride`, undefined as any)}>Remove image</Button>}
+              </>
+            }
+
+          </Tabs.Panel>
+
+          <Tabs.Panel value="json">
+            {overrideable ?
+              <>
+                {!jsonOverride ?
+                  <Box my="md">
+                    <DropzoneButton mimeTypes={['application/json']} onDrop={onJsonOverride} name="JSON" />
+                  </Box> : <>
+                    {jsonOverride && <CodeHighlightTabs
+                      withExpandButton
+                      expandCodeLabel="Show full JSON"
+                      collapseCodeLabel="Show less"
+                      defaultExpanded={false}
+                      mt="md"
+                      mb="lg"
+                      code={[{
+                        fileName: 'metadata.json',
+                        language: 'json',
+                        code: JSON.stringify(jsonOverride, null, 2),
+                      }]}
+                    />}
+                    <Button mt="md" color="gray" onClick={() => form.setFieldValue(`${nft.id}.jsonOverride`, undefined as any)}>Remove JSON</Button>
+                           </>}
+              </> :
+              <Text>Inscribe the raw JSON from the existing NFT</Text>
+            }
+          </Tabs.Panel>
+
+        </Tabs>
+      </Grid.Col>
+      <Grid.Col span={3}>
+        <Card shadow="sm" padding="xl" radius="md" h="100%">
+          <Stack justify="space-between" h="100%">
+            <Box>
+              <Text size="lg" mb="sm">Original</Text>
+              <Group justify="space-between">
+                {stats}
+              </Group>
+            </Box>
+            {imageType === 'Compress' &&
+              <Center>
+                <Stack gap="xs" ta="center" align="center">
+                  <Text>Cost reduction</Text>
+                  <>
+                    <Text color="green" size="xl"><b>{(spaceSaved * 100).toFixed(2)}%</b></Text>
+                    <ThemeIcon size="lg" color="green" radius="xl" mt="lg">
+                      <IconArrowDown size={24} />
+                    </ThemeIcon>
+                  </>
+                </Stack>
+              </Center>}
+            <Stack>
+              <Text size="lg">{imageType === 'Raw' ? 'Raw' : imageType === 'Compress' ? 'Compressed' : imageType === 'None' ? 'JSON only' : 'New image'}</Text>
+              {previewInfo?.image && imageType === 'Compress' && <Image src={URL.createObjectURL(previewInfo.image)} height={previewInfo.height} w={previewInfo.width} />}
+              {imageType === 'Override' &&
+                <Skeleton visible={!imageOverride}>
+                  <Image
+                    src={imageOverride && URL.createObjectURL(imageOverride)}
+                    height={320}
+                    onLoad={(e: any) => {
+                      if (imageOverride && (overrideImageInfo?.image as File)?.name !== (imageOverride as File)?.name) {
+                        setOverrideImageInfo({
+                          width: e.target.naturalWidth,
+                          height: e.target.naturalHeight,
+                          size: imageOverride.size,
+                          type: imageOverride.type,
+                          image: imageOverride,
+                        });
+                      }
+                    }}
+                  />
+                </Skeleton>}
+              <Group justify="space-between">
+                {imageType === 'Raw' ? stats : outputStats}
+              </Group>
+            </Stack>
           </Stack>
-        </Stack>
-      </Card>
-    </SimpleGrid>
+        </Card>
+      </Grid.Col>
+    </Grid>
   );
 }
 
@@ -406,9 +394,7 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
         quality: 100,
         size: 100,
         format: 'image/jpeg',
-        imageCompressionEnabled: true,
-        imageOverrideEnabled: false,
-        jsonOverrideEnabled: false,
+        imageType: 'Compress' as any,
       },
     })).reduce((acc, curr) => ({ ...acc, ...curr }), {}),
   });
@@ -420,9 +406,7 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
         quality: 100,
         size: 100,
         format: 'image/jpeg',
-        imageCompressionEnabled: true,
-        imageOverrideEnabled: false,
-        jsonOverrideEnabled: false,
+        imageType: 'Compress',
       };
     });
     form.setValues(values);
@@ -455,17 +439,9 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
       Object.keys(form.values).forEach((id) => {
         const config = form.values[id];
 
-        if (config.jsonOverrideEnabled && !config.jsonOverride) {
+        if (config.imageType === 'Override' && !config.imageOverride) {
           notifications.show({
-            message: 'Please upload a JSON file or disable JSON override',
-            color: 'red',
-          });
-          valid = false;
-        }
-
-        if (config.imageOverrideEnabled && !config.imageOverride && !config.imageOverrideNone) {
-          notifications.show({
-            message: 'Please upload an image file or disable image override or skip image inscription',
+            message: 'Please upload an image file or switch to a different image inscription mode',
             color: 'red',
           });
           valid = false;
@@ -473,11 +449,11 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
       });
 
       if (valid) {
-      onConfigure(selectedNfts.map((nft) => ({
-        nft,
-        ...form.values[nft.id],
-      })));
-    }
+        onConfigure(selectedNfts.map((nft) => ({
+          nft,
+          ...form.values[nft.id],
+        })));
+      }
     }
   }, [onConfigure, form.values]);
 

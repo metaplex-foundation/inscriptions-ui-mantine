@@ -228,6 +228,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               base: 1,
               sm: 2,
               lg: 5,
+              xl: 6,
             }}
           >
             {collate ? <>
