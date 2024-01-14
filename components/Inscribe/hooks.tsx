@@ -21,11 +21,11 @@ export const useNftJson = (nft: DasApiAsset) => useQuery({
   },
 });
 
-export const useNftInscription = (nft: DasApiAsset, options?: {
+export const useNftInscription = (nft: DasApiAsset, options: {
   fetchImage?: boolean;
   fetchMetadata?: boolean;
   fetchJson?: boolean
-}) => {
+} = {}) => {
   const umi = useUmi();
 
   return useQuery({
@@ -39,13 +39,12 @@ export const useNftInscription = (nft: DasApiAsset, options?: {
         inscriptionMetadataAccount: inscriptionMetadataAccount[0],
       });
 
-      const ops = options || {};
       let image;
       let metadata;
       let imagePdaExists;
       let metadataPdaExists;
 
-      if (ops.fetchImage) {
+      if (options.fetchImage) {
         const acc = await umi.rpc.getAccount(imagePda[0]);
         imagePdaExists = acc.exists;
         if (acc.exists) {
@@ -55,7 +54,7 @@ export const useNftInscription = (nft: DasApiAsset, options?: {
         imagePdaExists = await accountExists(umi, imagePda[0]);
       }
 
-      if (ops.fetchMetadata) {
+      if (options.fetchMetadata) {
         try {
           metadata = await safeFetchInscriptionMetadata(umi, inscriptionMetadataAccount[0]);
           metadataPdaExists = !!metadata;
@@ -69,7 +68,7 @@ export const useNftInscription = (nft: DasApiAsset, options?: {
 
       let json;
       let pdaExists;
-      if (ops.fetchJson) {
+      if (options.fetchJson) {
         const acc = await umi.rpc.getAccount(inscriptionPda[0]);
         pdaExists = acc.exists;
         if (acc.exists) {
