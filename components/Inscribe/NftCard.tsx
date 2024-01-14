@@ -56,7 +56,7 @@ export function NftCard({ nft, isSelected, showLinks }: { nft: AssetWithInscript
             right: '0.5rem',
 
           }}
-        >JSON Inscribed
+        >Inscribed
            </Badge>}
       {nft?.imagePdaExists
         && <Badge
