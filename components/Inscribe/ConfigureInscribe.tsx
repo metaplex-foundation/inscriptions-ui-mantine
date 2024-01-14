@@ -23,10 +23,12 @@ interface Settings {
   jsonOverride?: any
   imageOverrideEnabled: boolean
   imageOverride?: Blob | File
+  imageOverrideNone?: boolean
 }
 
 interface PreviewInfo { type: string, width: number, height: number, size: number, image: Blob | File }
 
+// TODO refactor this whole component
 function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: UseFormReturnType<{ [key: string]: Settings }>, counter?: number, overrideable?: boolean }) {
   const { json, image, isPending } = useNftJsonWithImage(nft);
   const [imageInfo, setImageInfo] = useState<{ width: number, height: number }>();
@@ -37,10 +39,10 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
     quality,
     size,
     format,
-    // imageCompressionEnabled,
     imageOverrideEnabled,
-    jsonOverrideEnabled,
+    imageOverrideNone,
     imageOverride,
+    jsonOverrideEnabled,
     jsonOverride,
   } = form.values[nft.id];
 
@@ -72,6 +74,13 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
       form.setFieldValue(`${nft.id}.imageOverride`, undefined as any);
     }
   }, [form.values[nft.id].imageOverrideEnabled]);
+
+  useEffect(() => {
+    if (form.values[nft.id].imageOverrideNone) {
+      setOverrideImageInfo(undefined);
+      form.setFieldValue(`${nft.id}.imageOverride`, undefined as any);
+    }
+  }, [form.values[nft.id].imageOverrideNone]);
 
   useEffect(() => {
     if (!form.values[nft.id].jsonOverrideEnabled) {
@@ -155,7 +164,7 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
       return <Center><Loader /></Center>;
     }
 
-    if ((!json && !jsonOverride) || (!image && !imageOverride)) {
+    if ((!json && !jsonOverride) || (!image && !imageOverride && !imageOverrideNone)) {
       return <Text>Unable to load stats</Text>;
     }
 
@@ -184,7 +193,6 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
   }, [isPending, json, image, previewInfo, imageOverride, overrideImageInfo, jsonOverride, imageOverrideEnabled]);
 
   const disabled = !form.values[nft.id]?.imageCompressionEnabled;
-  console.log('enabled', form.values[nft.id]?.imageCompressionEnabled);
   return (
     <SimpleGrid cols={3}>
       <Skeleton visible={isPending}>
@@ -289,14 +297,18 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
               label="Override image"
               {...form.getInputProps(`${nft.id}.imageOverrideEnabled`, { type: 'checkbox' })}
             />
-            {imageOverrideEnabled && (!imageOverride ?
-              <Box my="md">
+            {imageOverrideEnabled &&
+            <>
+              {!imageOverrideNone && (!imageOverride ?
+              <Box mt="md">
                 <DropzoneButton
                   mimeTypes={[MIME_TYPES.gif, MIME_TYPES.jpeg, MIME_TYPES.png]}
                   name="image"
                   onDrop={(files) => form.setFieldValue(`${nft.id}.imageOverride`, files[0] as any)}
                 />
               </Box> : <Button mt="md" color="gray" onClick={() => form.setFieldValue(`${nft.id}.imageOverride`, undefined as any)}>Remove image</Button>)}
+              <Checkbox mt="md" {...form.getInputProps(`${nft.id}.imageOverrideNone`, { type: 'checkbox' })} label="Skip image inscription" />
+            </>}
           </>}
       </Box>
       <Card shadow="sm" padding="xl" radius="md">
@@ -321,10 +333,10 @@ function Row({ nft, form, counter, overrideable }: { nft: DasApiAsset, form: Use
               </Stack>
             </Center>}
           <Stack>
-            <Text size="lg">{imageOverrideEnabled ? 'New image' : 'Downsampled'}</Text>
+            <Text size="lg">{!imageOverrideEnabled ? 'Downsampled' : imageOverrideNone ? 'JSON only' : 'New image' }</Text>
             {previewInfo?.image && !disabled
               && <Image src={URL.createObjectURL(previewInfo.image)} height={previewInfo.height} w={previewInfo.width} />}
-            {imageOverrideEnabled &&
+            {imageOverrideEnabled && !imageOverrideNone &&
               <Skeleton visible={!imageOverride}>
                 <Image
                   src={imageOverride && URL.createObjectURL(imageOverride)}
@@ -439,10 +451,33 @@ export function ConfigureInscribe({ selectedNfts, onConfigure }: { selectedNfts:
 
       onConfigure(result);
     } else {
+      let valid = true;
+      Object.keys(form.values).forEach((id) => {
+        const config = form.values[id];
+
+        if (config.jsonOverrideEnabled && !config.jsonOverride) {
+          notifications.show({
+            message: 'Please upload a JSON file or disable JSON override',
+            color: 'red',
+          });
+          valid = false;
+        }
+
+        if (config.imageOverrideEnabled && !config.imageOverride && !config.imageOverrideNone) {
+          notifications.show({
+            message: 'Please upload an image file or disable image override or skip image inscription',
+            color: 'red',
+          });
+          valid = false;
+        }
+      });
+
+      if (valid) {
       onConfigure(selectedNfts.map((nft) => ({
         nft,
         ...form.values[nft.id],
       })));
+    }
     }
   }, [onConfigure, form.values]);
 
