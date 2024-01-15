@@ -188,6 +188,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
             targetSize: c.jsonLength,
           }))
           .add(initializeAssociatedInscription(umi, {
+            inscriptionAccount: c.inscriptionPda[0],
             associationTag: 'image',
             inscriptionMetadataAccount: c.inscriptionMetadataAccount,
           }))
