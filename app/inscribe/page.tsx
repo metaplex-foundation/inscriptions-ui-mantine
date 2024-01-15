@@ -8,7 +8,7 @@ export default function () {
   const wallet = useWallet();
 
   return (
-    <Container size="lg" pb="xl">
+    <Container size="xl" pb="xl">
       {wallet.connected ? <Inscribe /> :
         <Container size="sm">
           <Paper mt="xl">
