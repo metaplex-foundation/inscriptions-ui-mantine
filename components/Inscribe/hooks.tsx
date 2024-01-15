@@ -1,8 +1,9 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
-import { findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findMintInscriptionPda } from '@metaplex-foundation/mpl-inscription';
+import { findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findMintInscriptionPda, safeFetchInscriptionMetadata } from '@metaplex-foundation/mpl-inscription';
 import { PublicKey, Umi } from '@metaplex-foundation/umi';
 import { useQuery } from '@tanstack/react-query';
 import { useUmi } from '@/providers/useUmi';
+import { InscriptionInfo } from './types';
 
 export async function accountExists(umi: Umi, account: PublicKey) {
   const maybeAccount = await umi.rpc.getAccount(account);
@@ -20,7 +21,11 @@ export const useNftJson = (nft: DasApiAsset) => useQuery({
   },
 });
 
-export const useNftInscription = (nft: DasApiAsset) => {
+export const useNftInscription = (nft: DasApiAsset, options: {
+  fetchImage?: boolean;
+  fetchMetadata?: boolean;
+  fetchJson?: boolean
+} = {}) => {
   const umi = useUmi();
 
   return useQuery({
@@ -34,16 +39,68 @@ export const useNftInscription = (nft: DasApiAsset) => {
         inscriptionMetadataAccount: inscriptionMetadataAccount[0],
       });
 
-      const pdaExists = await accountExists(umi, inscriptionPda[0]);
-      const imagePdaExists = await accountExists(umi, imagePda[0]);
+      let image;
+      let metadata;
+      let imagePdaExists;
+      let metadataPdaExists;
+
+      if (options.fetchImage) {
+        const acc = await umi.rpc.getAccount(imagePda[0]);
+        imagePdaExists = acc.exists;
+        if (acc.exists) {
+          image = new Blob([acc.data]);
+        }
+      } else {
+        imagePdaExists = await accountExists(umi, imagePda[0]);
+      }
+
+      if (options.fetchMetadata) {
+        try {
+          metadata = await safeFetchInscriptionMetadata(umi, inscriptionMetadataAccount[0]);
+          metadataPdaExists = !!metadata;
+        } catch (e) {
+          console.log('Error fetching inscription metadata', e);
+          metadataPdaExists = false;
+        }
+      } else {
+        metadataPdaExists = await accountExists(umi, inscriptionPda[0]);
+      }
+
+      let json;
+      let pdaExists;
+      if (options.fetchJson) {
+        const acc = await umi.rpc.getAccount(inscriptionPda[0]);
+        pdaExists = acc.exists;
+        if (acc.exists) {
+          try {
+            json = JSON.parse(Buffer.from(acc.data).toString('utf8'));
+          } catch (e) {
+            console.log('Error parsing inscription metadata', e);
+          }
+
+          if (!json) {
+            try {
+              json = JSON.parse(Buffer.from(acc.data).toString('ascii'));
+            } catch (e) {
+              console.log('Error parsing inscription metadata 2', e);
+            }
+          }
+        }
+      } else {
+        pdaExists = await accountExists(umi, inscriptionPda[0]);
+      }
 
       return {
         inscriptionPda,
         inscriptionMetadataAccount,
         imagePda,
         pdaExists,
+        metadataPdaExists,
         imagePdaExists,
-      };
+        image,
+        metadata,
+        json,
+      } as InscriptionInfo;
     },
   });
 };

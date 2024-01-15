@@ -4,11 +4,11 @@ import { Center, Container, Paper, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Inscribe } from '@/components/Inscribe/Inscribe';
 
-export default function () {
+export default function InscribePage() {
   const wallet = useWallet();
 
   return (
-    <Container size="lg" pb="xl">
+    <Container size="xl" pb="xl">
       {wallet.connected ? <Inscribe /> :
         <Container size="sm">
           <Paper mt="xl">

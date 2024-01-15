@@ -39,10 +39,11 @@ export function NftCard({ nft, isSelected, showLinks }: { nft: AssetWithInscript
               href={`https://solscan.io/account/${nft.imagePda[0]}?${env === 'devnet' ? 'cluster=devnet' : ''}`}
               target="_blank"
               rel="noopener noreferrer"
-            >              <Group justify="space-between">
-            <Text>Inscription Image</Text>
-            <IconExternalLink />
-                           </Group>
+            >
+              <Group justify="space-between">
+                <Text>Inscription Image</Text>
+                <IconExternalLink />
+              </Group>
             </Anchor>
           </Stack>}
 
@@ -56,7 +57,7 @@ export function NftCard({ nft, isSelected, showLinks }: { nft: AssetWithInscript
             right: '0.5rem',
 
           }}
-        >JSON Inscribed
+        >Inscribed
            </Badge>}
       {nft?.imagePdaExists
         && <Badge

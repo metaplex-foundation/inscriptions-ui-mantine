@@ -17,6 +17,7 @@ export const getCollection = (nft: DasApiAsset) => nft.grouping.filter(({ group_
 
 export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: AssetWithInscription[]) => void, selectedNfts: AssetWithInscription[] }) {
   const [selectAll, setSelectAll] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [collate, setCollate] = useState(false);
   const [hideInscribed, setHideInscribed] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedNfts.map((nft) => nft.id)));
@@ -228,6 +229,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               base: 1,
               sm: 2,
               lg: 5,
+              xl: 6,
             }}
           >
             {collate ? <>
@@ -247,12 +249,13 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
                 <Box
                   key={nft.id}
                   onClick={() => {
-                    handleSelect(nft);
+                    if (nft.pdaExists) {
+                      window.open(`/explorer/${nft.id}`, '_blank', 'noreferrer');
+                    } else {
+                      handleSelect(nft);
+                    }
                   }}
                   className={classes.cardContainer}
-                  style={{
-                    cursor: nft.pdaExists ? 'default' : 'pointer',
-                  }}
                 >
                   <NftCard nft={nft} isSelected={selected.has(nft.id)} />
                 </Box>))}

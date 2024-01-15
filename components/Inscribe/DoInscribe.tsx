@@ -12,6 +12,7 @@ import { base58 } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionSettings } from './ConfigureInscribe';
 
+const MAX_PERMITTED_DATA_INCREASE = 10_240;
 const sizeOf = require('browser-image-size');
 
 async function fetchIdempotentInscriptionShard(umi: Umi, number = Math.floor(Math.random() * 32)) {
@@ -38,12 +39,11 @@ const signatureToString = (signature: Uint8Array) => base58.deserialize(signatur
 type Calculated = {
   json: any;
   jsonLength: number;
-  newImage: Blob | File;
+  newImage?: Blob | File;
   nft: DasApiAsset;
   quality: number;
   size: number;
   format: string;
-  disabled: boolean;
   inscriptionPda: Pda;
   inscriptionMetadataAccount: Pda;
   imagePda: Pda;
@@ -63,22 +63,29 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
     const doIt = async () => {
       // we recalculate everything because of collation
       const calculated: Calculated[] = await pMap(inscriptionSettings, async (settings) => {
-        const { nft, disabled, format, quality, size } = settings;
-        const json = await client.fetchQuery({
-          queryKey: ['fetch-nft-json', settings.nft.id],
-          queryFn: async () => {
-            const j = await (await fetch(nft.content.json_uri)).json();
-            return j;
-          },
-        });
+        const { nft, format, quality, size, imageType, jsonOverride, imageOverride } = settings;
 
-        const image = await client.fetchQuery({
-          queryKey: ['fetch-uri-blob', json.image],
-          queryFn: async () => {
-            const blob = await (await fetch(json.image)).blob();
-            return blob;
-          },
-        });
+        let json = jsonOverride;
+        if (!json) {
+          json = await client.fetchQuery({
+            queryKey: ['fetch-nft-json', settings.nft.id],
+            queryFn: async () => {
+              const j = await (await fetch(nft.content.json_uri)).json();
+              return j;
+            },
+          });
+        }
+
+        let image = imageOverride;
+        if (imageType === 'Raw' || imageType === 'Compress') {
+          image = await client.fetchQuery({
+            queryKey: ['fetch-uri-blob', json.image],
+            queryFn: async () => {
+              const blob = await (await fetch(json.image)).blob();
+              return blob;
+            },
+          });
+        }
 
         const inscriptionData = await client.fetchQuery({
           queryKey: ['fetch-nft-inscription', nft.id],
@@ -103,13 +110,12 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
           },
         });
 
-        let newImage: Blob | File = image;
-        if (!disabled) {
+        if (image && imageType === 'Compress') {
           // TODO optimize, only download headers
           const { width, height } = await sizeOf(image);
-          newImage = await new Promise((resolve, reject) => {
+          image = await new Promise((resolve, reject) => {
             // eslint-disable-next-line no-new
-            new Compressor(image, {
+            new Compressor(image as Blob, {
               quality: quality / 100,
               width: width * (size / 100),
               height: height * (size / 100),
@@ -126,10 +132,13 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
 
         return {
           ...inscriptionData,
-          ...settings,
           json,
           jsonLength: JSON.stringify(json).length,
-          newImage,
+          newImage: image,
+          quality,
+          size,
+          nft,
+          format,
         };
       }, {
         concurrency: 5,
@@ -168,7 +177,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
       let setupBuilder = new TransactionBuilder();
       let dataBuilder = new TransactionBuilder();
       const chunkSize = 800;
-      const imageDatas = (await Promise.all(summary.calculated.map((c) => c.newImage.arrayBuffer()))).map((b) => new Uint8Array(b));
+      const imageDatas = (await Promise.all(summary.calculated.map((c) => c.newImage?.arrayBuffer()))).map((b) => b ? new Uint8Array(b) : null);
       const enc = new TextEncoder();
 
       // TODO skip the inits if they already exist
@@ -186,39 +195,47 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
             inscriptionMetadataAccount: c.inscriptionMetadataAccount,
             associatedTag: null,
             targetSize: c.jsonLength,
-          }))
-          .add(initializeAssociatedInscription(umi, {
-            inscriptionAccount: c.inscriptionPda[0],
-            associationTag: 'image',
-            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-          }))
-          .add(allocate(umi, {
-            inscriptionAccount: c.imagePda,
-            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-            associatedTag: 'image',
-            targetSize: c.newImage.size,
           }));
 
-        const imageData = imageDatas[index];
-        let i = 0;
-        let chunks = 0;
-        while (i < imageData.length) {
-          dataBuilder = dataBuilder.add(writeData(umi, {
-            inscriptionAccount: c.imagePda,
-            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-            value: imageData.slice(i, i + chunkSize),
-            associatedTag: 'image',
-            offset: i,
-          }));
-          i += chunkSize;
-          chunks += 1;
+        if (c.newImage) {
+          setupBuilder = setupBuilder
+            .add(initializeAssociatedInscription(umi, {
+              inscriptionAccount: c.inscriptionPda[0],
+              associationTag: 'image',
+              inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            }));
+
+          // we need to call allocate multiple times because Solana accounts can only be allocated at most 10k at a time
+          const numAllocates = Math.ceil(c.newImage.size / MAX_PERMITTED_DATA_INCREASE);
+          for (let j = 0; j < numAllocates; j += 1) {
+            setupBuilder = setupBuilder.add(allocate(umi, {
+              inscriptionAccount: c.imagePda,
+              inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+              associatedTag: 'image',
+              targetSize: c.newImage.size,
+            }));
+          }
+
+          const imageData = imageDatas[index] as Uint8Array;
+          let i = 0;
+          let chunks = 0;
+          while (i < imageData.length) {
+            dataBuilder = dataBuilder.add(writeData(umi, {
+              inscriptionAccount: c.imagePda,
+              inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+              value: imageData.slice(i, i + chunkSize),
+              associatedTag: 'image',
+              offset: i,
+            }));
+            i += chunkSize;
+            chunks += 1;
+          }
+          console.log('image chunks', chunks);
         }
 
-        console.log('image chunks', chunks);
-
         const jsonData = enc.encode(JSON.stringify(c.json));
-        i = 0;
-        chunks = 0;
+        let i = 0;
+        let chunks = 0;
         while (i < jsonData.length) {
           dataBuilder = dataBuilder.add(writeData(umi, {
             inscriptionAccount: c.inscriptionPda[0],
@@ -307,8 +324,6 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
       close();
     }
   }, [summary, inscriptionSettings, setProgress, setMaxProgress, open, close, umi, onComplete]);
-
-  console.log(progress, maxProgress);
 
   return (
     <>
