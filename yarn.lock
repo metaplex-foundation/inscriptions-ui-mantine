@@ -3310,6 +3310,46 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@particle-network/analytics@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@particle-network/analytics@npm:1.0.1"
+  dependencies:
+    hash.js: "npm:^1.1.7"
+    uuidv4: "npm:^6.2.13"
+  checksum: a9648d06e87099fdcb3cc1f1158c8bad8d0375a4ac38589ac313dfb87d204a09e9fdfcb2e1a6e8b1cc20190d95bc03690f1260ae1c0891d82e8d37bda2170707
+  languageName: node
+  linkType: hard
+
+"@particle-network/auth@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@particle-network/auth@npm:1.3.0"
+  dependencies:
+    "@particle-network/analytics": "npm:^1.0.1"
+    "@particle-network/chains": "npm:*"
+    "@particle-network/crypto": "npm:^1.0.1"
+    buffer: "npm:^6.0.3"
+    draggabilly: "npm:^3.0.0"
+  checksum: f7f182afcdbbdc48f66c6e6339a1f40da4c91c34a6531679ad293a28ea0438b12d2f0eee6c38d63b3dcb906a0df6ffaf78ffbd74f223130ad4cd02698a2cdf51
+  languageName: node
+  linkType: hard
+
+"@particle-network/chains@npm:*":
+  version: 1.3.6
+  resolution: "@particle-network/chains@npm:1.3.6"
+  checksum: f53fed2080e8f32df7b31f37fb37f083b7ad083f831e2793eedb3bf76af91ad40ddcbbd0caca354978d9246a11cf978ecbef237612c498c1265a4220bd33c2bd
+  languageName: node
+  linkType: hard
+
+"@particle-network/crypto@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@particle-network/crypto@npm:1.0.1"
+  dependencies:
+    crypto-js: "npm:^4.1.1"
+    uuidv4: "npm:^6.2.13"
+  checksum: 320ae6f2353b17e873ff15bafa00cd54cfad5bf7b85467f6be88160f1a9e26affb3bbe8ef2676ccd4cd00b6e9dc528746e7598feabe11472621966424954a938
+  languageName: node
+  linkType: hard
+
 "@particle-network/solana-wallet@npm:1.2.1":
   version: 1.2.1
   resolution: "@particle-network/solana-wallet@npm:1.2.1"
@@ -4720,7 +4760,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@solana/wallet-adapter-wallets@npm:^0.19.24":
+"@solana/wallet-adapter-wallets@npm:^0.19.25":
   version: 0.19.25
   resolution: "@solana/wallet-adapter-wallets@npm:0.19.25"
   dependencies:
@@ -7295,6 +7335,13 @@ __metadata:
   version: 2.0.10
   resolution: "@types/unist@npm:2.0.10"
   checksum: 5f247dc2229944355209ad5c8e83cfe29419fa7f0a6d557421b1985a1500444719cc9efcc42c652b55aab63c931813c88033e0202c1ac684bcd4829d66e44731
+  languageName: node
+  linkType: hard
+
+"@types/uuid@npm:8.3.4":
+  version: 8.3.4
+  resolution: "@types/uuid@npm:8.3.4"
+  checksum: b9ac98f82fcf35962317ef7dc44d9ac9e0f6fdb68121d384c88fe12ea318487d5585d3480fa003cf28be86a3bbe213ca688ba786601dce4a97724765eb5b1cf2
   languageName: node
   linkType: hard
 
@@ -10142,6 +10189,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"crypto-js@npm:^4.1.1":
+  version: 4.2.0
+  resolution: "crypto-js@npm:4.2.0"
+  checksum: 8fbdf9d56f47aea0794ab87b0eb9833baf80b01a7c5c1b0edc7faf25f662fb69ab18dc2199e2afcac54670ff0cd9607a9045a3f7a80336cccd18d77a55b9fdf0
+  languageName: node
+  linkType: hard
+
 "crypto-random-string@npm:^2.0.0":
   version: 2.0.0
   resolution: "crypto-random-string@npm:2.0.0"
@@ -10781,6 +10835,16 @@ __metadata:
   version: 16.3.1
   resolution: "dotenv@npm:16.3.1"
   checksum: b95ff1bbe624ead85a3cd70dbd827e8e06d5f05f716f2d0cbc476532d54c7c9469c3bc4dd93ea519f6ad711cb522c00ac9a62b6eb340d5affae8008facc3fbd7
+  languageName: node
+  linkType: hard
+
+"draggabilly@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "draggabilly@npm:3.0.0"
+  dependencies:
+    get-size: "npm:^3.0.0"
+    unidragger: "npm:^3.0.0"
+  checksum: 4fc17000c5023bb55f278b6282170a1dab246b3796add04a63927e9973e0883bcc33c3a1c5060b463d111b16a66c1a55e9fb91eac93b56a77a9e4669169045b5
   languageName: node
   linkType: hard
 
@@ -11700,6 +11764,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ev-emitter@npm:^2.0.0":
+  version: 2.1.2
+  resolution: "ev-emitter@npm:2.1.2"
+  checksum: 3c7a7983d1b964ca58e4ed025aeb1f4201b1a76ffd1c1f59677518f4d4a3bd82cd4d94fa1f1646b29949744c30725e4607505c75a1fb81832846537d65ac026f
+  languageName: node
+  linkType: hard
+
 "event-target-shim@npm:^5.0.0":
   version: 5.0.1
   resolution: "event-target-shim@npm:5.0.1"
@@ -12414,6 +12485,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"get-size@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "get-size@npm:3.0.0"
+  checksum: dcfed978a6671941ca2ac8618e300cb8726fa6c01a072506bc67330790b81d5590c1e080f24e983d92782c32a7d17cc276d84156cd90275e13f9acf310ce0f05
+  languageName: node
+  linkType: hard
+
 "get-stream@npm:^6.0.0":
   version: 6.0.1
   resolution: "get-stream@npm:6.0.1"
@@ -12757,7 +12835,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hash.js@npm:^1.0.0, hash.js@npm:^1.0.3":
+"hash.js@npm:^1.0.0, hash.js@npm:^1.0.3, hash.js@npm:^1.1.7":
   version: 1.1.7
   resolution: "hash.js@npm:1.1.7"
   dependencies:
@@ -15034,10 +15112,11 @@ __metadata:
     "@metaplex-foundation/umi-signer-wallet-adapters": "npm:^0.8.10"
     "@next/bundle-analyzer": "npm:^14.0.1"
     "@next/eslint-plugin-next": "npm:^14.0.1"
+    "@particle-network/auth": "npm:^1.3.0"
     "@solana/spl-token": "npm:^0.3.9"
     "@solana/wallet-adapter-react": "npm:^0.15.35"
     "@solana/wallet-adapter-react-ui": "npm:^0.9.34"
-    "@solana/wallet-adapter-wallets": "npm:^0.19.24"
+    "@solana/wallet-adapter-wallets": "npm:^0.19.25"
     "@solana/web3.js": "npm:^1.87.6"
     "@storybook/addon-essentials": "npm:^7.5.2"
     "@storybook/addon-styling-webpack": "npm:^0.0.5"
@@ -20130,6 +20209,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"unidragger@npm:^3.0.0":
+  version: 3.0.1
+  resolution: "unidragger@npm:3.0.1"
+  dependencies:
+    ev-emitter: "npm:^2.0.0"
+  checksum: d9751e6641b56fd92001ffafaa1b352ca5c80392de4f451926a75685a268bbabde6bb337a4fe45043c14ef8e632931dab60ba120bc7371768c1ad7011963af39
+  languageName: node
+  linkType: hard
+
 "unique-filename@npm:^3.0.0":
   version: 3.0.0
   resolution: "unique-filename@npm:3.0.0"
@@ -20486,7 +20574,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:^8.3.2":
+"uuid@npm:8.3.2, uuid@npm:^8.3.2":
   version: 8.3.2
   resolution: "uuid@npm:8.3.2"
   bin:
@@ -20501,6 +20589,16 @@ __metadata:
   bin:
     uuid: dist/bin/uuid
   checksum: 1607dd32ac7fc22f2d8f77051e6a64845c9bce5cd3dd8aa0070c074ec73e666a1f63c7b4e0f4bf2bc8b9d59dc85a15e17807446d9d2b17c8485fbc2147b27f9b
+  languageName: node
+  linkType: hard
+
+"uuidv4@npm:^6.2.13":
+  version: 6.2.13
+  resolution: "uuidv4@npm:6.2.13"
+  dependencies:
+    "@types/uuid": "npm:8.3.4"
+    uuid: "npm:8.3.2"
+  checksum: 33287c7c71e19c5a9fe0d936c0df648338965442c80b5b26e51c13ec9a9c524a72c718355e0cea8a9431a78680d72a41a236b87046ecc0a05f518c8e22df9e35
   languageName: node
   linkType: hard
 
