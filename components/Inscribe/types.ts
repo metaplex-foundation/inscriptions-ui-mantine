@@ -1,4 +1,5 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
+import { InscriptionMetadata } from '@metaplex-foundation/mpl-inscription';
 import { Pda } from '@metaplex-foundation/umi';
 
 export interface InscriptionInfo {
@@ -6,7 +7,11 @@ export interface InscriptionInfo {
   inscriptionMetadataAccount: Pda
   imagePda: Pda
   pdaExists: boolean
+  metadataPdaExists?: boolean
   imagePdaExists: boolean
+  metadata?: InscriptionMetadata
+  image?: Blob
+  json?: any
 }
 
 export type AssetWithInscription = DasApiAsset & InscriptionInfo;

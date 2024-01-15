@@ -4,7 +4,7 @@ import { Center, Container, Paper, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Inscribe } from '@/components/Inscribe/Inscribe';
 
-export default function () {
+export default function InscribePage() {
   const wallet = useWallet();
 
   return (
