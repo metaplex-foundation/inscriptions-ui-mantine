@@ -5,14 +5,16 @@ import { publicKey } from '@metaplex-foundation/umi';
 import { useQuery } from '@tanstack/react-query';
 import { Explorer } from '@/components/Explorer/Explorer';
 import { useUmi } from '@/providers/useUmi';
+import { useEnv } from '@/providers/useEnv';
 
 export default function ExplorerPage({ params }: { params: { mint: string } }) {
+  const env = useEnv();
   const umi = useUmi();
   const { mint } = params;
   const { error, isPending, data: nft } = useQuery({
     retry: false,
     refetchOnMount: true,
-    queryKey: ['fetch-nft', mint],
+    queryKey: ['fetch-nft', env, mint],
     queryFn: async () => umi.rpc.getAsset(publicKey(mint)),
   });
   return (

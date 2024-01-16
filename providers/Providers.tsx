@@ -16,7 +16,7 @@ import { InscriptionCounterProvider } from './InscriptionCounterProvider';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(new QueryClient());
-  const [env, setEnv] = useState<Env>('devnet');
+  const [env, setEnv] = useState<Env>('mainnet-beta');
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
