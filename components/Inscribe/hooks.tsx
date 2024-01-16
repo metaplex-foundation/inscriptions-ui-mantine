@@ -4,6 +4,7 @@ import { PublicKey, Umi } from '@metaplex-foundation/umi';
 import { useQuery } from '@tanstack/react-query';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionInfo } from './types';
+import { useEnv } from '@/providers/useEnv';
 
 export async function accountExists(umi: Umi, account: PublicKey) {
   const maybeAccount = await umi.rpc.getAccount(account);
@@ -27,10 +28,11 @@ export const useNftInscription = (nft: DasApiAsset, options: {
   fetchJson?: boolean
 } = {}) => {
   const umi = useUmi();
+  const env = useEnv();
 
   return useQuery({
     // refetchOnMount: true,
-    queryKey: ['fetch-nft-inscription', nft.id],
+    queryKey: ['fetch-nft-inscription', env, nft.id],
     queryFn: async () => {
       const inscriptionPda = findMintInscriptionPda(umi, { mint: nft.id });
       const inscriptionMetadataAccount = findInscriptionMetadataPda(umi, { inscriptionAccount: inscriptionPda[0] });

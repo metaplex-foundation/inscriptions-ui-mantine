@@ -30,7 +30,7 @@ export const InscriptionCounterProvider = ({
       numInscriptions = Math.max(numInscriptions, rank);
     });
     setCount(numInscriptions);
-  }, [setCount, shardKeys]);
+  }, [setCount, shardKeys, umi]);
 
   const interval = useInterval(() => {
     fetchAndUpdate();
@@ -40,7 +40,7 @@ export const InscriptionCounterProvider = ({
     fetchAndUpdate();
     interval.start();
     return interval.stop;
-  }, []);
+  }, [fetchAndUpdate]);
 
  return <InscriptionCounterContext.Provider value={{ count }}>{children}</InscriptionCounterContext.Provider>;
 };

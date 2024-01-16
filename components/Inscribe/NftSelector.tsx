@@ -10,12 +10,14 @@ import { NftCollectionCard } from './NftCollectionCard';
 
 import classes from './NftSelector.module.css';
 import { AssetWithInscription, InscriptionInfo } from './types';
+import { useEnv } from '@/providers/useEnv';
 
 export const UNCATAGORIZED = 'Uncategorized';
 
 export const getCollection = (nft: DasApiAsset) => nft.grouping.filter(({ group_key }) => group_key === 'collection')[0]?.group_value || UNCATAGORIZED;
 
 export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: AssetWithInscription[]) => void, selectedNfts: AssetWithInscription[] }) {
+  const env = useEnv();
   const [selectAll, setSelectAll] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [collate, setCollate] = useState(false);
@@ -26,7 +28,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
   const umi = useUmi();
 
   const { error, isPending, data: nfts } = useQuery({
-    queryKey: ['fetch-nfts', umi.identity.publicKey],
+    queryKey: ['fetch-nfts', env, umi.identity.publicKey],
     queryFn: async () => {
       const assets = await umi.rpc.getAssetsByAuthority({ authority: umi.identity.publicKey });
       const infos: Pick<InscriptionInfo, 'inscriptionPda' | 'inscriptionMetadataAccount' | 'imagePda'>[] = assets.items.map((nft) => {

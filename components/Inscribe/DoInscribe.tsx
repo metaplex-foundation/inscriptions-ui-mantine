@@ -11,6 +11,7 @@ import { notifications } from '@mantine/notifications';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionSettings } from './ConfigureInscribe';
+import { useEnv } from '@/providers/useEnv';
 
 const MAX_PERMITTED_DATA_INCREASE = 10_240;
 const sizeOf = require('browser-image-size');
@@ -52,6 +53,7 @@ type Calculated = {
 };
 
 export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSettings: InscriptionSettings[], onComplete: (txs: string[]) => void }) {
+  const env = useEnv();
   const [summary, setSummary] = useState<{ calculated: Calculated[], totalSize: number }>();
   const [progress, setProgress] = useState<number>(0);
   const [maxProgress, setMaxProgress] = useState<number>(0);
@@ -88,7 +90,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         }
 
         const inscriptionData = await client.fetchQuery({
-          queryKey: ['fetch-nft-inscription', nft.id],
+          queryKey: ['fetch-nft-inscription', env, nft.id],
           queryFn: async () => {
             const inscriptionPda = findMintInscriptionPda(umi, { mint: nft.id });
             const inscriptionMetadataAccount = findInscriptionMetadataPda(umi, { inscriptionAccount: inscriptionPda[0] });
