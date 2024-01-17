@@ -5,7 +5,6 @@ import { useUmi } from '@/providers/useUmi';
 import { InscriptionInfo } from '../Inscribe/types';
 import { useEnv } from '@/providers/useEnv';
 import { ExplorerNftCard } from './ExplorerNftCard';
-import { ExplorerRecent } from './ExplorerRecent';
 
 export function ExplorerLanding() {
   const umi = useUmi();
@@ -84,10 +83,6 @@ export function ExplorerLanding() {
           >
             {nfts?.map((nft) => <ExplorerNftCard nft={nft} key={nft.id} />)}
           </SimpleGrid> : <Center h="20vh" ta="center"><Text>You don&apos;t have any Inscriptions.</Text></Center>}
-
-      <Box mt="xl">
-        <ExplorerRecent />
-      </Box>
     </Box>
   );
 }
