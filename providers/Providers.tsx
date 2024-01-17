@@ -8,6 +8,7 @@ import { Notifications } from '@mantine/notifications';
 import { AppShell } from '@mantine/core';
 import { ReactQueryStreamedHydration } from '@tanstack/react-query-next-experimental';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Header } from '@/components/Header/Header';
 import { UmiProvider } from './UmiProvider';
 import { EnvProvider } from './EnvProvider';
@@ -15,8 +16,12 @@ import { Env } from './useEnv';
 import { InscriptionCounterProvider } from './InscriptionCounterProvider';
 
 export function Providers({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const queryEnv = searchParams.get('env');
   const [client] = useState(new QueryClient());
-  const [env, setEnv] = useState<Env>('mainnet-beta');
+  const [env, setEnv] = useState<Env>((queryEnv === 'mainnet-beta' || queryEnv === 'devnet') ? queryEnv : 'mainnet-beta');
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -24,6 +29,14 @@ export function Providers({ children }: { children: ReactNode }) {
     ],
     []
   );
+
+  const doSetEnv = (e: Env) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('env', e);
+
+    setEnv(e);
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const endpoint = useMemo(() => {
     switch (env) {
@@ -52,7 +65,7 @@ export function Providers({ children }: { children: ReactNode }) {
                       }}
                     >
                       <AppShell.Header>
-                        <Header env={env} setEnv={setEnv} />
+                        <Header env={env} setEnv={doSetEnv} />
                       </AppShell.Header>
                       <AppShell.Main>
                         {children}
