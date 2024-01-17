@@ -22,7 +22,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [collate, setCollate] = useState(false);
   const [hideInscribed, setHideInscribed] = useState(true);
-  const [showOnlyOwned, setShowOnlyOwned] = useState(false);
+  const [showOnlyOwned, setShowOnlyOwned] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedNfts.map((nft) => nft.id)));
   const [collections, setCollections] = useState<{ [key: string]: { nfts: AssetWithInscription[], selected: number } }>({});
 
