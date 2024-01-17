@@ -22,6 +22,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [collate, setCollate] = useState(false);
   const [hideInscribed, setHideInscribed] = useState(true);
+  const [showOnlyOwned, setShowOnlyOwned] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedNfts.map((nft) => nft.id)));
   const [collections, setCollections] = useState<{ [key: string]: { nfts: AssetWithInscription[], selected: number } }>({});
 
@@ -207,6 +208,14 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               setSelectAll(!selectAll);
             }}
           />
+          <Checkbox
+            label="Show only owned"
+            checked={showOnlyOwned}
+            disabled={isPending}
+            onChange={() => {
+              setShowOnlyOwned(!showOnlyOwned);
+            }}
+          />
         </Group>
         <Button
           disabled={!selected.size}
@@ -220,8 +229,11 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
       {isPending ? <Center h="50vh"><Loader /> </Center> : !nfts?.length ?
         <Container size="sm">
           <Paper mt="xl">
+            <Center>
+              <Text mt="5vh" w="50%" ta="center">Unable to find any NFTs created by this wallet. Only the Update Authority of an NFT is authorized to Inscribe.</Text>
+            </Center>
             <Center h="20vh">
-              <Text w="50%" ta="center">Don&apos;t have any NFTs? Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
+              <Text w="50%" ta="center">Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
             </Center>
           </Paper>
         </Container> :
@@ -234,34 +246,42 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               xl: 6,
             }}
           >
-            {collate ? <>
-              {Object.keys(collections).map((key) => {
-                if (key === UNCATAGORIZED) return null;
-                return (
+            {collate ?
+              <>
+                {Object.keys(collections).map((key) => {
+                  if (key === UNCATAGORIZED) return null;
+                  return (
+                    <Box
+                      key={key}
+                      onClick={() => handleSelectCollection(key)}
+                      className={classes.cardContainer}
+                    >
+                      <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
+                    </Box>);
+                })}
+              </>
+              : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true)
+                .filter((nft) => {
+                  if (showOnlyOwned) {
+                    return nft.ownership.owner === umi.identity.publicKey;
+                  }
+                  return true;
+                })
+                .map((nft) => (
                   <Box
-                    key={key}
-                    onClick={() => handleSelectCollection(key)}
+                    key={nft.id}
+                    onClick={() => {
+                      if (nft.pdaExists) {
+                        // TODO fix this to be more nextjs idiomatic
+                        window.open(`/explorer/${nft.id}?env=${env}`, '_blank', 'noreferrer');
+                      } else {
+                        handleSelect(nft);
+                      }
+                    }}
                     className={classes.cardContainer}
                   >
-                    <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
-                  </Box>);
-              })}
-                       </>
-              : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true).map((nft) => (
-                <Box
-                  key={nft.id}
-                  onClick={() => {
-                    if (nft.pdaExists) {
-                      // TODO fix this to be more nextjs idiomatic
-                      window.open(`/explorer/${nft.id}?env=${env}`, '_blank', 'noreferrer');
-                    } else {
-                      handleSelect(nft);
-                    }
-                  }}
-                  className={classes.cardContainer}
-                >
-                  <NftCard nft={nft} isSelected={selected.has(nft.id)} />
-                </Box>))}
+                    <NftCard nft={nft} isSelected={selected.has(nft.id)} />
+                  </Box>))}
           </SimpleGrid>
           {/* {collections[UNCATAGORIZED] && <Box mt="lg">
             <Text>Uncheck &quot;Collate by collection&quot; to see <b>{collections[UNCATAGORIZED].nfts.length}</b> NFT(s) not in a collection</Text>
