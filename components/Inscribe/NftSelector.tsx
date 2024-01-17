@@ -229,8 +229,11 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
       {isPending ? <Center h="50vh"><Loader /> </Center> : !nfts?.length ?
         <Container size="sm">
           <Paper mt="xl">
+            <Center>
+              <Text mt="5vh" w="50%" ta="center">Unable to find any NFTs created by this wallet. Only the Update Authority of an NFT is authorized to Inscribe.</Text>
+            </Center>
             <Center h="20vh">
-              <Text w="50%" ta="center">Don&apos;t have any NFTs? Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
+              <Text w="50%" ta="center">Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
             </Center>
           </Paper>
         </Container> :
