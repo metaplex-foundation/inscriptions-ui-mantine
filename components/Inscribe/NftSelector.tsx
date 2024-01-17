@@ -4,6 +4,9 @@ import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findMintInscriptionPda } from '@metaplex-foundation/mpl-inscription';
+import { fetchDigitalAsset, getMetadataGpaBuilder } from '@metaplex-foundation/mpl-token-metadata';
+import { Umi, defaultPublicKey, publicKey } from '@metaplex-foundation/umi';
+import pMap from 'p-map';
 import { useUmi } from '@/providers/useUmi';
 import { NftCard } from './NftCard';
 import { NftCollectionCard } from './NftCollectionCard';
@@ -15,6 +18,70 @@ import { useEnv } from '@/providers/useEnv';
 export const UNCATAGORIZED = 'Uncategorized';
 
 export const getCollection = (nft: DasApiAsset) => nft.grouping.filter(({ group_key }) => group_key === 'collection')[0]?.group_value || UNCATAGORIZED;
+
+async function getAssetsByAuthority({ umi, authority }: { umi: Umi, authority: string }) {
+  const mints = await getMetadataGpaBuilder(umi)
+    .whereField('updateAuthority', publicKey(authority))
+    .sliceField('mint')
+    .getDataAsPublicKeys();
+
+  const ret: { items: DasApiAsset[] } = { items: [] };
+  // eslint-disable-next-line no-restricted-syntax
+  // for (const mint of mints) {
+  ret.items = await pMap(mints, async (mint) => {
+    // eslint-disable-next-line no-await-in-loop
+    console.log(`Loading ${mint}`);
+    const asset = await fetchDigitalAsset(umi, mint);
+    return {
+      id: mint,
+      interface: 'V1_NFT',
+      content: {
+        json_uri: asset.metadata.uri,
+        metadata: {
+          name: asset.metadata.name,
+          symbol: asset.metadata.symbol,
+        },
+      },
+      authorities: [],
+      compression: {
+        eligible: false,
+        compressed: false,
+        seq: 0,
+        leaf_id: 0,
+        data_hash: defaultPublicKey(),
+        creator_hash: defaultPublicKey(),
+        asset_hash: defaultPublicKey(),
+        tree: defaultPublicKey(),
+      },
+      grouping: [],
+      royalty: {
+        royalty_model: 'creators',
+        target: null,
+        percent: 0,
+        basis_points: 0,
+        primary_sale_happened: false,
+        locked: false,
+      },
+      creators: [],
+      ownership: {
+        frozen: false,
+        delegated: false,
+        delegate: null,
+        ownership_model: 'single',
+        owner: defaultPublicKey(),
+      },
+      supply: {
+        print_max_supply: 0,
+        print_current_supply: 0,
+        edition_nonce: null,
+      },
+      mutable: false,
+      burnt: false,
+    };
+  });
+
+  return ret;
+}
 
 export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: AssetWithInscription[]) => void, selectedNfts: AssetWithInscription[] }) {
   const env = useEnv();
@@ -30,7 +97,9 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
   const { error, isPending, data: nfts } = useQuery({
     queryKey: ['fetch-nfts', env, umi.identity.publicKey],
     queryFn: async () => {
-      const assets = await umi.rpc.getAssetsByAuthority({ authority: umi.identity.publicKey });
+      // const assets = await umi.rpc.getAssetsByAuthority({ authority: umi.identity.publicKey });
+      const assets = await getAssetsByAuthority({ umi, authority: umi.identity.publicKey });
+
       const infos: Pick<InscriptionInfo, 'inscriptionPda' | 'inscriptionMetadataAccount' | 'imagePda'>[] = assets.items.map((nft) => {
         const inscriptionPda = findMintInscriptionPda(umi, { mint: nft.id });
         const inscriptionMetadataAccount = findInscriptionMetadataPda(umi, { inscriptionAccount: inscriptionPda[0] });
@@ -246,7 +315,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
                     <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
                   </Box>);
               })}
-                       </>
+            </>
               : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true).map((nft) => (
                 <Box
                   key={nft.id}
