@@ -252,7 +252,8 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
                   key={nft.id}
                   onClick={() => {
                     if (nft.pdaExists) {
-                      window.open(`/explorer/${nft.id}`, '_blank', 'noreferrer');
+                      // TODO fix this to be more nextjs idiomatic
+                      window.open(`/explorer/${nft.id}?env=${env}`, '_blank', 'noreferrer');
                     } else {
                       handleSelect(nft);
                     }
