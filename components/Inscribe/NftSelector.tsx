@@ -22,6 +22,7 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [collate, setCollate] = useState(false);
   const [hideInscribed, setHideInscribed] = useState(true);
+  const [showOnlyOwned, setShowOnlyOwned] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedNfts.map((nft) => nft.id)));
   const [collections, setCollections] = useState<{ [key: string]: { nfts: AssetWithInscription[], selected: number } }>({});
 
@@ -207,6 +208,14 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               setSelectAll(!selectAll);
             }}
           />
+          <Checkbox
+            label="Show only owned"
+            checked={showOnlyOwned}
+            disabled={isPending}
+            onChange={() => {
+              setShowOnlyOwned(!showOnlyOwned);
+            }}
+          />
         </Group>
         <Button
           disabled={!selected.size}
@@ -234,34 +243,42 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
               xl: 6,
             }}
           >
-            {collate ? <>
-              {Object.keys(collections).map((key) => {
-                if (key === UNCATAGORIZED) return null;
-                return (
+            {collate ?
+              <>
+                {Object.keys(collections).map((key) => {
+                  if (key === UNCATAGORIZED) return null;
+                  return (
+                    <Box
+                      key={key}
+                      onClick={() => handleSelectCollection(key)}
+                      className={classes.cardContainer}
+                    >
+                      <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
+                    </Box>);
+                })}
+              </>
+              : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true)
+                .filter((nft) => {
+                  if (showOnlyOwned) {
+                    return nft.ownership.owner === umi.identity.publicKey;
+                  }
+                  return true;
+                })
+                .map((nft) => (
                   <Box
-                    key={key}
-                    onClick={() => handleSelectCollection(key)}
+                    key={nft.id}
+                    onClick={() => {
+                      if (nft.pdaExists) {
+                        // TODO fix this to be more nextjs idiomatic
+                        window.open(`/explorer/${nft.id}?env=${env}`, '_blank', 'noreferrer');
+                      } else {
+                        handleSelect(nft);
+                      }
+                    }}
                     className={classes.cardContainer}
                   >
-                    <NftCollectionCard nfts={collections[key].nfts} numSelected={collections[key].selected} />
-                  </Box>);
-              })}
-                       </>
-              : nfts?.filter((nft) => hideInscribed ? !nft.pdaExists : true).map((nft) => (
-                <Box
-                  key={nft.id}
-                  onClick={() => {
-                    if (nft.pdaExists) {
-                      // TODO fix this to be more nextjs idiomatic
-                      window.open(`/explorer/${nft.id}?env=${env}`, '_blank', 'noreferrer');
-                    } else {
-                      handleSelect(nft);
-                    }
-                  }}
-                  className={classes.cardContainer}
-                >
-                  <NftCard nft={nft} isSelected={selected.has(nft.id)} />
-                </Box>))}
+                    <NftCard nft={nft} isSelected={selected.has(nft.id)} />
+                  </Box>))}
           </SimpleGrid>
           {/* {collections[UNCATAGORIZED] && <Box mt="lg">
             <Text>Uncheck &quot;Collate by collection&quot; to see <b>{collections[UNCATAGORIZED].nfts.length}</b> NFT(s) not in a collection</Text>
