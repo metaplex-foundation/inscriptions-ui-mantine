@@ -2,19 +2,19 @@ import { Center, Container, Flex, Group, Menu, NumberFormatter, Title } from '@m
 import { IconChevronDown } from '@tabler/icons-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import classes from './Header.module.css';
 import { MetaplexLogo, MetaplexLogoVariant } from '../MetaplexLogo';
 import { Env } from '@/providers/useEnv';
 import { useInscriptionCounter } from '@/providers/useInscriptionCounter';
+import RetainQueryLink from '../RetainQueryLink';
 
 const HeaderLink = ({ label, link, disabled }: { label: string, link: string, disabled?: boolean }) => {
   const cls = disabled ? [classes.disabled, classes.link].join(' ') : classes.link;
   return (
-    <Link href={link} className={cls}>
+    <RetainQueryLink href={link} className={cls}>
       {label}
-    </Link>
+    </RetainQueryLink>
   );
 };
 
@@ -24,15 +24,15 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
 
   return (
     <Container
-      size="lg"
+      size="xl"
       h={80}
       pt={12}
     >
       <div className={classes.inner}>
         <Flex justify="center" align="center" gap="md">
-          <Link href="/">
+          <RetainQueryLink href="/">
             <MetaplexLogo variant={MetaplexLogoVariant.Small} />
-          </Link>
+          </RetainQueryLink>
           <Title order={2}>Inscriptions</Title>
           {pathname !== '/' &&
             <Title c="red" fw={900} order={3}>
@@ -41,7 +41,7 @@ export function Header({ env, setEnv }: { env: string; setEnv: (env: Env) => voi
         </Flex>
         <Group>
           <HeaderLink label="Inscribe" link="/inscribe" />
-          <HeaderLink label="Manage" link="/manage" disabled />
+          <HeaderLink label="Explorer" link="/explorer" />
           <WalletMultiButton />
           <Menu trigger="hover" transitionProps={{ exitDuration: 0 }} withinPortal>
             <Menu.Target>

@@ -5,6 +5,7 @@ import { IconNotes } from '@tabler/icons-react';
 import Link from 'next/link';
 import classes from './Landing.module.css';
 import { InscriptionCounterHero } from '../InscriptionCounter/inscriptionCounterHero';
+import RetainQueryLink from '../RetainQueryLink';
 
 const links: { label: string; href: string }[] = [
   { label: 'MPL Repository', href: 'https://github.com/metaplex-foundation/mpl-inscription' },
@@ -47,22 +48,27 @@ export function Landing() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >here
-                  </a>
+                                 </a>
                 </List.Item>
               ))}
             </List>
 
             <Group mt={30}>
-              <Link href="/inscribe">
+              <RetainQueryLink href="/inscribe">
                 <Button radius="xl" size="md" className={classes.control}>
                   Get started
                 </Button>
-              </Link>
+              </RetainQueryLink>
               <Link href="https://github.com/metaplex-foundation/mpl-inscription">
                 <Button variant="default" radius="xl" size="md" className={classes.control}>
                   Source code
                 </Button>
               </Link>
+              <RetainQueryLink href="/explorer">
+                <Button variant="outline" radius="xl" size="md" className={classes.control}>
+                  Explorer
+                </Button>
+              </RetainQueryLink>
             </Group>
           </div>
           <Image src="./hero.webp" className={classes.image} />
