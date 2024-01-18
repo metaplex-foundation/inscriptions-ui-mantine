@@ -12,6 +12,7 @@ export interface InscriptionInfo {
   metadata?: InscriptionMetadata
   image?: Blob
   json?: any
+  jsonValid?: boolean
 }
 
 export type AssetWithInscription = DasApiAsset & InscriptionInfo;

@@ -70,12 +70,14 @@ export const useNftInscription = (nft: DasApiAsset, options: {
 
       let json;
       let pdaExists;
+      let jsonValid = false;
       if (options.fetchJson) {
         const acc = await umi.rpc.getAccount(inscriptionPda[0]);
         pdaExists = acc.exists;
         if (acc.exists) {
           try {
             json = JSON.parse(Buffer.from(acc.data).toString('utf8'));
+            jsonValid = true;
           } catch (e) {
             console.log('Error parsing inscription metadata', e);
           }
@@ -83,6 +85,7 @@ export const useNftInscription = (nft: DasApiAsset, options: {
           if (!json) {
             try {
               json = JSON.parse(Buffer.from(acc.data).toString('ascii'));
+              jsonValid = true;
             } catch (e) {
               console.log('Error parsing inscription metadata 2', e);
             }
@@ -110,6 +113,7 @@ export const useNftInscription = (nft: DasApiAsset, options: {
         image,
         metadata,
         json,
+        jsonValid,
       } as InscriptionInfo;
     },
   });

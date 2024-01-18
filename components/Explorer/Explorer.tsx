@@ -1,5 +1,5 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
-import { Center, Image, Loader, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Badge, Center, Group, Image, Loader, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 
 import { CodeHighlightTabs } from '@mantine/code-highlight';
 
@@ -80,7 +80,10 @@ export function Explorer({ nft }: { nft: DasApiAsset }) {
                 />}
                 {inscriptionInfo.data?.metadata &&
                   <>
-                    <Text fz="xs" tt="uppercase" fw={700} c="dimmed">Inscribed JSON</Text>
+                    <Group gap="xs">
+                      <Text fz="xs" tt="uppercase" fw={700} c="dimmed">Inscribed JSON</Text>
+                      {!inscriptionInfo.data?.jsonValid && <Badge color="red" variant="light">Invalid JSON</Badge>}
+                    </Group>
                     <CodeHighlightTabs
                       withExpandButton
                       expandCodeLabel="Show full JSON"
