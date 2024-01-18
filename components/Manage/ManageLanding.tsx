@@ -13,7 +13,7 @@ export function ManageLanding() {
   const [showOnlyOwned, setShowOnlyOwned] = useState(true);
 
   const { error, isPending, data: nfts } = useQuery({
-    queryKey: ['fetch-inscriptions', env, umi.identity.publicKey],
+    queryKey: ['fetch-ua-inscriptions', env, umi.identity.publicKey],
     queryFn: async () => {
       const assets = await umi.rpc.getAssetsByAuthority({ authority: umi.identity.publicKey });
       const infos: Pick<InscriptionInfo, 'inscriptionPda' | 'inscriptionMetadataAccount' | 'imagePda'>[] = assets.items.map((nft) => {
@@ -72,7 +72,7 @@ export function ManageLanding() {
 
   return (
     <Box mt="xl">
-      <Title mb="lg">Your Inscriptions</Title>
+      <Title mb="lg">Inscriptions you can manage</Title>
       <Checkbox
         label="Show only owned"
         checked={showOnlyOwned}
