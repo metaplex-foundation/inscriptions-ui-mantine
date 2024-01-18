@@ -34,7 +34,7 @@ export function Inscribe() {
       <Stepper active={active} onStepClick={setActive}>
         <Stepper.Step
           label="Select NFTs"
-          description="Inscribe selected NFTs"
+          description="Inscribe NFTs you've created"
           allowStepSelect={shouldAllowSelectStep(0)}
         >
           <NftSelector
