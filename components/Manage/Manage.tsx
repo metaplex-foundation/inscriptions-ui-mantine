@@ -4,7 +4,7 @@ import { Button, Center, Image, JsonInput, Loader, Modal, Paper, Progress, Simpl
 import { CodeHighlightTabs } from '@mantine/code-highlight';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TransactionBuilder, TransactionBuilderGroup, signAllTransactions } from '@metaplex-foundation/umi';
+import { TransactionBuilderGroup, signAllTransactions } from '@metaplex-foundation/umi';
 import { clearData, writeData } from '@metaplex-foundation/mpl-inscription';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 import pMap from 'p-map';
