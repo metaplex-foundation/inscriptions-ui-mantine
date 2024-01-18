@@ -9,7 +9,7 @@ import { useEnv } from '@/providers/useEnv';
 export async function accountExists(umi: Umi, account: PublicKey) {
   const maybeAccount = await umi.rpc.getAccount(account);
   if (maybeAccount.exists) {
-      return true;
+    return true;
   }
   return false;
 }
@@ -85,6 +85,14 @@ export const useNftInscription = (nft: DasApiAsset, options: {
               json = JSON.parse(Buffer.from(acc.data).toString('ascii'));
             } catch (e) {
               console.log('Error parsing inscription metadata 2', e);
+            }
+          }
+
+          if (!json) {
+            try {
+              json = Buffer.from(acc.data).toString('utf8');
+            } catch (e) {
+              console.log('Error parsing inscription metadata 3', e);
             }
           }
         }
