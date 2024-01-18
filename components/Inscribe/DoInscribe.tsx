@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { allocate, createShard, findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findInscriptionShardPda, findMintInscriptionPda, initializeAssociatedInscription, initializeFromMint, safeFetchInscriptionShard, writeData } from '@metaplex-foundation/mpl-inscription';
 import Compressor from 'compressorjs';
 import { useDisclosure } from '@mantine/hooks';
-import { Pda, TransactionBuilder, TransactionBuilderGroup, Umi, signAllTransactions } from '@metaplex-foundation/umi';
+import { Pda, Transaction, TransactionBuilder, TransactionBuilderGroup, Umi, signAllTransactions } from '@metaplex-foundation/umi';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { notifications } from '@mantine/notifications';
 import { base58 } from '@metaplex-foundation/umi/serializers';
@@ -267,26 +267,38 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         signers: [umi.identity],
       }))));
 
-      const errors = [];
+      let txsToSend = [...signedTxs];
       const results: string[] = [];
+      let retries = 3;
 
-      await pMap(signedTxs, async (tx) => {
-        try {
-          const res = await umi.rpc.sendTransaction(tx, {
-            commitment: 'finalized',
-          });
-          const sig = signatureToString(res);
-          console.log('signature', sig);
+      do {
+        const errors: Transaction[] = [];
+        console.log('init tries left', retries);
+        // eslint-disable-next-line no-await-in-loop
+        await pMap(txsToSend, async (tx) => {
+          try {
+            const res = await umi.rpc.sendTransaction(tx, {
+              commitment: 'finalized',
+            });
+            const sig = signatureToString(res);
+            console.log('signature', sig);
 
-          setProgress((p) => p + 1);
-          results.push(sig);
-        } catch (e) {
-          console.log(e);
-          errors.push(tx);
-        }
-      }, {
-        concurrency: 2,
-      });
+            setProgress((p) => p + 1);
+            results.push(sig);
+          } catch (e) {
+            console.log(e);
+            errors.push(tx);
+          }
+        }, {
+          concurrency: 2,
+        });
+        txsToSend = errors;
+        retries -= 1;
+      } while (txsToSend.length && retries >= 0);
+
+      if (txsToSend.length) {
+        throw new Error('Setup transactions failed to confirm successfully');
+      }
 
       const dataTxs = (await new TransactionBuilderGroup(dataSplit).setLatestBlockhash(umi)).build(umi);
 
@@ -297,22 +309,37 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         signers: [umi.identity],
       }))));
 
-      await pMap(signedDataTxs, async (tx) => {
-        try {
-          const res = await umi.rpc.sendTransaction(tx);
-          const sig = signatureToString(res);
-          console.log('signature', sig);
+      txsToSend = [...signedDataTxs];
+      retries = 3;
 
-          setProgress((p) => p + 1);
-          results.push(sig);
-        } catch (e) {
-          console.log(e);
-          errors.push(tx);
-          throw e;
-        }
-      }, {
-        concurrency: 2,
-      });
+      // TODO refactor into function
+      do {
+        const errors: Transaction[] = [];
+        console.log('data tries left', retries);
+        // eslint-disable-next-line no-await-in-loop
+        await pMap(txsToSend, async (tx) => {
+          try {
+            const res = await umi.rpc.sendTransaction(tx);
+            const sig = signatureToString(res);
+            console.log('signature', sig);
+
+            setProgress((p) => p + 1);
+            results.push(sig);
+          } catch (e) {
+            console.log(e);
+            errors.push(tx);
+            throw e;
+          }
+        }, {
+          concurrency: 2,
+        });
+        txsToSend = errors;
+        retries -= 1;
+      } while (txsToSend.length && retries >= 0);
+
+      if (txsToSend.length) {
+        throw new Error('Write data transactions failed to confirm successfully');
+      }
 
       onComplete(results);
     } catch (e: any) {
