@@ -8,7 +8,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { Pda, Transaction, TransactionBuilder, TransactionBuilderGroup, Umi, signAllTransactions } from '@metaplex-foundation/umi';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { notifications } from '@mantine/notifications';
-import { base58 } from '@metaplex-foundation/umi/serializers';
+import { base58, set } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionSettings } from './ConfigureInscribe';
 import { useEnv } from '@/providers/useEnv';
@@ -58,6 +58,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
   const [progress, setProgress] = useState<number>(0);
   const [maxProgress, setMaxProgress] = useState<number>(0);
   const [opened, { open, close }] = useDisclosure(false);
+  const [showRetry, setShowRetry] = useState(false);
   const client = useQueryClient();
   const umi = useUmi();
 
@@ -162,9 +163,10 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
       );
     };
     doIt();
+    setShowRetry(false);
   }, [inscriptionSettings]);
 
-  const handleInscribe = useCallback(async () => {
+  const handleInscribe = useCallback(async (skipInit?: boolean) => {
     if (!summary) {
       return;
     }
@@ -260,44 +262,48 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
       console.log('data tx length', dataSplit.length);
       setMaxProgress(split.length + dataSplit.length);
 
-      const setupTxs = (await new TransactionBuilderGroup(split).setLatestBlockhash(umi)).build(umi);
-
-      const signedTxs = await signAllTransactions(setupTxs.map((tx => ({
-        transaction: tx,
-        signers: [umi.identity],
-      }))));
-
-      let txsToSend = [...signedTxs];
+      let txsToSend;
+      let retries;
       const results: string[] = [];
-      let retries = 3;
+      if (!skipInit) {
+        const setupTxs = (await new TransactionBuilderGroup(split).setLatestBlockhash(umi)).build(umi);
 
-      do {
-        const errors: Transaction[] = [];
-        console.log('init tries left', retries);
-        // eslint-disable-next-line no-await-in-loop
-        await pMap(txsToSend, async (tx) => {
-          try {
-            const res = await umi.rpc.sendTransaction(tx, {
-              commitment: 'finalized',
-            });
-            const sig = signatureToString(res);
-            console.log('signature', sig);
+        const signedTxs = await signAllTransactions(setupTxs.map((tx => ({
+          transaction: tx,
+          signers: [umi.identity],
+        }))));
 
-            setProgress((p) => p + 1);
-            results.push(sig);
-          } catch (e) {
-            console.log(e);
-            errors.push(tx);
-          }
-        }, {
-          concurrency: 2,
-        });
-        txsToSend = errors;
-        retries -= 1;
-      } while (txsToSend.length && retries >= 0);
+        txsToSend = [...signedTxs];
+        retries = 3;
 
-      if (txsToSend.length) {
-        throw new Error('Setup transactions failed to confirm successfully');
+        do {
+          const errors: Transaction[] = [];
+          console.log('init tries left', retries);
+          // eslint-disable-next-line no-await-in-loop
+          await pMap(txsToSend, async (tx) => {
+            try {
+              const res = await umi.rpc.sendTransaction(tx, {
+                commitment: 'finalized',
+              });
+              const sig = signatureToString(res);
+              console.log('signature', sig);
+
+              setProgress((p) => p + 1);
+              results.push(sig);
+            } catch (e) {
+              console.log(e);
+              errors.push(tx);
+            }
+          }, {
+            concurrency: 2,
+          });
+          txsToSend = errors;
+          retries -= 1;
+        } while (txsToSend.length && retries >= 0);
+
+        if (txsToSend.length) {
+          throw new Error('Setup transactions failed to confirm successfully');
+        }
       }
 
       const dataTxs = (await new TransactionBuilderGroup(dataSplit).setLatestBlockhash(umi)).build(umi);
@@ -349,6 +355,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         message: e.message,
         color: 'red',
       });
+      setShowRetry(true);
     } finally {
       close();
     }
@@ -364,7 +371,14 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
               <Text>Number of NFTs to inscribe: <b>{summary.calculated.length}</b></Text>
               <Text>Total Solana rent cost: <b>~{(summary.totalSize * 0.00000696).toFixed(4)} SOL</b></Text>
               <Text>Total Metaplex fees: <b>FREE</b> forever</Text>
-              <Center><Button size="lg" onClick={handleInscribe}>Inscribe!</Button></Center>
+              <Center><Button size="lg" onClick={() => handleInscribe()}>Inscribe!</Button></Center>
+              {showRetry &&
+                <Center mt="lg" ta="center">
+                  <Stack>
+                    <Button onClick={() => handleInscribe(true)} variant="default">Retry inscribe data only</Button>
+                    <Text size="sm">Inscribing data only assumes the initialization step was successful</Text>
+                  </Stack>
+                </Center>}
             </Stack>}
         </Paper>
       </Container>
