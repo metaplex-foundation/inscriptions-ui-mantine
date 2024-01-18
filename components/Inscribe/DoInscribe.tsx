@@ -273,6 +273,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
 
       do {
         const errors: Transaction[] = [];
+        console.log('init tries left', retries);
         // eslint-disable-next-line no-await-in-loop
         await pMap(txsToSend, async (tx) => {
           try {
@@ -313,6 +314,7 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
 
       do {
         const errors: Transaction[] = [];
+        console.log('data tries left', retries);
         // eslint-disable-next-line no-await-in-loop
         await pMap(signedDataTxs, async (tx) => {
           try {
