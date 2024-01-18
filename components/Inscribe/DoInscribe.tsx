@@ -309,14 +309,15 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
         signers: [umi.identity],
       }))));
 
-      txsToSend = [...signedTxs];
+      txsToSend = [...signedDataTxs];
       retries = 3;
 
+      // TODO refactor into function
       do {
         const errors: Transaction[] = [];
         console.log('data tries left', retries);
         // eslint-disable-next-line no-await-in-loop
-        await pMap(signedDataTxs, async (tx) => {
+        await pMap(txsToSend, async (tx) => {
           try {
             const res = await umi.rpc.sendTransaction(tx);
             const sig = signatureToString(res);
