@@ -227,16 +227,22 @@ export function NftSelector({ onSelect, selectedNfts }: { onSelect: (nfts: Asset
 
       </Group>
       {isPending ? <Center h="50vh"><Loader /> </Center> : !nfts?.length ?
-        <Container size="sm">
-          <Paper mt="xl">
-            <Center>
-              <Text mt="5vh" w="50%" ta="center">Unable to find any NFTs created by this wallet. Only the Update Authority of an NFT is authorized to Inscribe.</Text>
-            </Center>
-            <Center h="20vh">
-              <Text w="50%" ta="center">Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor></Text>
-            </Center>
-          </Paper>
-        </Container> :
+        <>
+          <Container size="sm">
+            <Paper mt="xl">
+              <Center h="20vh">
+                <Text w="50%" ta="center">Unable to find any NFTs created by this wallet. Only the <b>Update Authority</b> of an NFT is authorized to Inscribe.</Text>
+              </Center>
+            </Paper>
+          </Container>
+          <Container size="sm">
+            <Paper mt="xl">
+              <Center h="20vh">
+                <Text w="50%" ta="center">Launch your own collection on <Anchor href="https://studio.metaplex.com" target="_blank">Metaplex Creator Studio</Anchor>. Return here once your collection has minted NFTs to inscribe them.</Text>
+              </Center>
+            </Paper>
+          </Container>
+        </> :
         <>
           <SimpleGrid
             cols={{
