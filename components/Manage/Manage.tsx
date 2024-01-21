@@ -1,205 +1,213 @@
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
-import { Button, Center, Image, JsonInput, Loader, Modal, Paper, Progress, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Box, Center, Modal, Paper, Progress, SimpleGrid, Stack, Tabs, Text, Title, rem } from '@mantine/core';
 
-import { CodeHighlightTabs } from '@mantine/code-highlight';
+import { useCallback, useState } from 'react';
 
-import { useCallback, useEffect, useState } from 'react';
-import { TransactionBuilderGroup, signAllTransactions } from '@metaplex-foundation/umi';
-import { clearData, writeData } from '@metaplex-foundation/mpl-inscription';
-import { base58 } from '@metaplex-foundation/umi/serializers';
-import pMap from 'p-map';
+import { clearData, initializeAssociatedInscription } from '@metaplex-foundation/mpl-inscription';
+
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { useNftInscription, useNftJson } from '../Inscribe/hooks';
-import { ManageStat } from './ManageStat';
-import { useUmi } from '@/providers/useUmi';
+import { IconAlertTriangle, IconBraces, IconInfoCircle, IconPhoto, IconWriting } from '@tabler/icons-react';
+import { Pda, PublicKey, TransactionBuilder } from '@metaplex-foundation/umi';
+import { useNftInscription } from '../Inscribe/hooks';
 
-const signatureToString = (signature: Uint8Array) => base58.deserialize(signature)[0];
+import { useUmi } from '@/providers/useUmi';
+import { ExplorerNftDetails } from '../Explorer/ExplorerNftDetails';
+import { ExplorerInscriptionDetails } from '../Explorer/ExplorerInscriptionDetails';
+import { ManageImage } from './ManageImage';
+import { ManageJson } from './ManageJson';
+import { buildAllocate, buildChunkedWriteData, prepareAndSignTxs, sendTxsWithRetries } from '@/lib/tx';
+import { ManageDanger } from './ManageDanger';
+import { ManageCustom } from './ManageCustom';
 
 export function Manage({ nft }: { nft: DasApiAsset }) {
   const inscriptionInfo = useNftInscription(nft, { fetchImage: true, fetchMetadata: true, fetchJson: true });
-  const jsonInfo = useNftJson(nft);
-  const [newJson, setNewJson] = useState<string>(inscriptionInfo.data?.json || '');
   const umi = useUmi();
   const [progress, setProgress] = useState<number>(0);
   const [maxProgress, setMaxProgress] = useState<number>(0);
   const [opened, { open, close }] = useDisclosure(false);
 
-  const handleWriteData = useCallback(async () => {
-    if (!inscriptionInfo.data) {
-      console.log('no inscription info');
-    } else {
-      try {
-        open();
-        setProgress(0);
-        let dataBuilder = clearData(umi, {
-          inscriptionAccount: inscriptionInfo.data.inscriptionPda[0],
+  const handleWrite = useCallback(async ({ data, associatedTag, inscriptionAccount }: { data: Uint8Array, associatedTag: string | null, inscriptionAccount?: Pda | PublicKey }) => {
+    if (!inscriptionInfo.data || !inscriptionAccount) {
+      return;
+    }
+
+    try {
+      open();
+      setProgress(0);
+      let initBuilder = new TransactionBuilder();
+
+      if (associatedTag === 'image' && !inscriptionInfo.data.imagePdaExists) {
+        initBuilder = initBuilder.add(
+          initializeAssociatedInscription(umi, {
+          inscriptionAccount: inscriptionInfo.data.inscriptionPda,
           inscriptionMetadataAccount: inscriptionInfo.data.inscriptionMetadataAccount,
-          associatedTag: null,
-        });
-        const chunkSize = 800;
-        const enc = new TextEncoder();
+          associationTag: associatedTag,
+        }));
+      } else {
+        initBuilder = initBuilder.add(
+          clearData(umi, {
+          inscriptionAccount,
+          inscriptionMetadataAccount: inscriptionInfo.data.inscriptionMetadataAccount,
+          associatedTag,
+        }));
+      }
 
-        console.log('new json', newJson);
-        const jsonData = enc.encode(newJson);
-        let i = 0;
-        let chunks = 0;
-        while (i < jsonData.length) {
-          dataBuilder = dataBuilder.add(writeData(umi, {
-            inscriptionAccount: inscriptionInfo.data.inscriptionPda[0],
-            inscriptionMetadataAccount: inscriptionInfo.data.inscriptionMetadataAccount,
-            value: jsonData.slice(i, i + chunkSize),
-            associatedTag: null,
-            offset: i,
-          }));
-          i += chunkSize;
-          chunks += 1;
-        }
-        console.log('json chunks', chunks);
+      initBuilder = buildAllocate({
+        umi,
+        builder: initBuilder,
+        inscriptionAccount,
+        inscriptionMetadataAccount: inscriptionInfo.data.inscriptionMetadataAccount,
+        associatedTag,
+        targetSize: data.length,
+      });
 
-        const dataSplit = dataBuilder.unsafeSplitByTransactionSize(umi);
-        console.log('data tx length', dataSplit.length);
+      const dataBuilder = buildChunkedWriteData({
+        umi,
+        inscriptionAccount,
+        inscriptionMetadataAccount: inscriptionInfo.data.inscriptionMetadataAccount,
+        associatedTag,
+        data,
+      });
 
-        setMaxProgress(dataSplit.length);
+      const initTxs = await prepareAndSignTxs({ umi, builder: initBuilder });
 
-        const dataTxs = (await new TransactionBuilderGroup(dataSplit).setLatestBlockhash(umi)).build(umi);
+      setMaxProgress(initTxs.length);
 
-        const signedDataTxs = await signAllTransactions(dataTxs.map((tx => ({
-          transaction: tx,
-          signers: [umi.identity],
-        }))));
+      const initRes = await sendTxsWithRetries({
+        umi,
+        txs: initTxs,
+        concurrency: 2,
+        onProgress: () => setProgress((p) => p + 1),
+      });
 
-        const errors = [];
-        const results: string[] = [];
-
-        await pMap(signedDataTxs, async (tx) => {
-          try {
-            const res = await umi.rpc.sendTransaction(tx);
-            const sig = signatureToString(res);
-            console.log('signature', sig);
-
-            setProgress((p) => p + 1);
-            results.push(sig);
-          } catch (e) {
-            console.log(e);
-            errors.push(tx);
-            throw e;
-          }
-        }, {
-          concurrency: 2,
-        });
-      } catch (e: any) {
-        console.log(e);
+      if (initRes.errors.length > 0) {
         notifications.show({
           title: 'Error inscribing',
-          message: e.message,
+          message: 'Could not confirm inscription account initialization',
           color: 'red',
         });
-      } finally {
-        close();
+        return;
       }
+
+      const dataTxs = await prepareAndSignTxs({ umi, builder: dataBuilder });
+      setMaxProgress((p) => p + dataTxs.length);
+
+      const dataRes = await sendTxsWithRetries({
+        umi,
+        txs: dataTxs,
+        concurrency: 2,
+        onProgress: () => setProgress((p) => p + 1),
+      });
+
+      if (dataRes.errors.length > 0) {
+        notifications.show({
+          title: 'Error inscribing',
+          message: 'Could not confirm inscription writes',
+          color: 'red',
+        });
+        return;
+      }
+
+      notifications.show({
+        title: 'Inscribed',
+        message: 'Your inscription has been updated',
+        color: 'green',
+      });
+
+      inscriptionInfo.refetch();
+    } catch (e: any) {
+      notifications.show({
+        title: 'Error inscribing',
+        message: e.message,
+        color: 'red',
+      });
+    } finally {
+      close();
     }
-  }, [inscriptionInfo.data, newJson]);
+  }, [inscriptionInfo.data, umi, open, close, setProgress, setMaxProgress]);
 
-  useEffect(() => {
-    console.log('json changed', inscriptionInfo.data?.json);
-    setNewJson(JSON.stringify(inscriptionInfo.data?.json, null, 2) || '');
-  }, [inscriptionInfo.data?.json]);
-
+  const iconStyle = { width: rem(12), height: rem(12) };
   return (
     <>
-      <SimpleGrid cols={2} mt="xl" spacing="lg" pb="xl">
-        <Paper p="xl" radius="md">
-          <Stack>
-            <Text fz="md" tt="uppercase" fw={700} c="dimmed">NFT Details</Text>
-            {jsonInfo.isPending ? <Center h="20vh"><Loader /></Center> :
-              <>
-                <Title>{jsonInfo.data.name}</Title>
+      <Tabs orientation="vertical" defaultValue="details" mt="xl">
+        <Tabs.List>
+          <Tabs.Tab value="details" leftSection={<IconInfoCircle style={iconStyle} />}>
+            Details
+          </Tabs.Tab>
+          <Tabs.Tab value="image" leftSection={<IconPhoto style={iconStyle} />}>
+            Image
+          </Tabs.Tab>
+          <Tabs.Tab value="json" leftSection={<IconBraces style={iconStyle} />}>
+            JSON
+          </Tabs.Tab>
+          <Tabs.Tab value="custom" leftSection={<IconWriting style={iconStyle} />}>
+            Custom data
+          </Tabs.Tab>
+          <Tabs.Tab value="danger" leftSection={<IconAlertTriangle style={iconStyle} />}>
+            Danger zone
+          </Tabs.Tab>
+        </Tabs.List>
 
-                <Image src={jsonInfo.data.image} maw={320} />
-                {jsonInfo.data.description && <ManageStat
-                  label="Description"
-                  value={jsonInfo.data.description}
-                />}
-                <ManageStat
-                  label="Mint"
-                  value={nft.id}
-                  copyable
-                />
+        <Tabs.Panel value="details">
+          <SimpleGrid cols={2} ml="md" spacing="lg" pb="xl">
+            <Paper p="xl" radius="md">
+              <ExplorerNftDetails nft={nft} />
+            </Paper>
+            <Paper p="xl" radius="md">
+              <ExplorerInscriptionDetails nft={nft} />
+            </Paper>
+          </SimpleGrid>
+        </Tabs.Panel>
 
-                <Text fz="xs" tt="uppercase" fw={700} c="dimmed">JSON Metadata</Text>
-                <CodeHighlightTabs
-                  withExpandButton
-                  expandCodeLabel="Show full JSON"
-                  collapseCodeLabel="Show less"
-                  defaultExpanded
-                  mb="lg"
-                  code={[{
-                    fileName: 'metadata.json',
-                    language: 'json',
-                    code: JSON.stringify(jsonInfo.data, null, 2),
-                  }]}
-                />
-              </>}
+        <Tabs.Panel value="image">
+          <Box ml="md">
+            <ManageImage
+              nft={nft}
+              onUpdate={async (image) => {
+                handleWrite({
+                  data: new Uint8Array(await image.arrayBuffer()),
+                  associatedTag: 'image',
+                  inscriptionAccount: inscriptionInfo.data?.imagePda,
+                });
+              }}
+            />
+          </Box>
+        </Tabs.Panel>
+        <Tabs.Panel value="json">
+          <Box ml="md">
+            <ManageJson
+              nft={nft}
+              onUpdate={(json) => {
+              const enc = new TextEncoder();
+              const jsonData = enc.encode(json);
+              handleWrite({
+                data: jsonData,
+                associatedTag: null,
+                inscriptionAccount: inscriptionInfo.data?.inscriptionPda,
+              });
+            }}
+            />
+          </Box>
+        </Tabs.Panel>
+        <Tabs.Panel value="custom">
+          <Box ml="md">
+            <ManageCustom />
+          </Box>
+        </Tabs.Panel>
+        <Tabs.Panel value="danger">
+          <Box ml="md">
+            <ManageDanger
+              nft={nft}
+            />
+          </Box>
+        </Tabs.Panel>
 
-          </Stack>
-        </Paper>
-        <Paper p="xl" radius="md">
-          <Stack>
-            <Text fz="md" tt="uppercase" fw={700} c="dimmed">Inscription Details</Text>
-            {inscriptionInfo.isPending ? <Center h="20vh"><Loader /></Center> :
-              inscriptionInfo.error || !inscriptionInfo?.data.metadataPdaExists ? <Center h="20vh"><Text>NFT is not inscribed</Text></Center>
-                :
-                <>
-                  <Title>
-                    #{inscriptionInfo.data?.metadata?.inscriptionRank.toString()!}
-                  </Title>
-                  {inscriptionInfo.data?.image &&
-                    <>
-                      <Text fz="xs" tt="uppercase" fw={700} c="dimmed">Inscribed Image</Text>
-                      <Image src={URL.createObjectURL(inscriptionInfo.data?.image)} maw={320} />
-
-                    </>}
-                  <ManageStat
-                    label="Inscription address (JSON)"
-                    value={inscriptionInfo.data?.inscriptionPda[0]!}
-                    copyable
-                  />
-                  <ManageStat
-                    label="Inscription metadata address"
-                    value={inscriptionInfo.data?.inscriptionMetadataAccount[0]!}
-                    copyable
-                  />
-                  {inscriptionInfo.data?.imagePdaExists && <ManageStat
-                    label="Inscription image address"
-                    value={inscriptionInfo.data?.imagePda[0]!}
-                    copyable
-                  />}
-                  {inscriptionInfo.data?.metadata &&
-                    <>
-                      <Text fz="xs" tt="uppercase" fw={700} c="dimmed">Inscribe JSON</Text>
-                      <JsonInput
-                        label="JSON to Inscribe"
-                        value={newJson}
-                        onChange={setNewJson}
-                        validationError="Invalid JSON"
-                        autosize
-                      />
-                    </>}
-                </>
-            }
-            <SimpleGrid cols={3}>
-              <Button size="md" onClick={handleWriteData}>Update JSON</Button>
-              {/* <Button size="md" onClick={null}>Remove Authority</Button>
-            <Button size="md" onClick={null}>Burn</Button> */}
-            </SimpleGrid>
-          </Stack>
-        </Paper>
-      </SimpleGrid>
+      </Tabs>
       <Modal opened={opened} onClose={() => { }} centered withCloseButton={false}>
         <Center my="xl">
           <Stack gap="md" align="center">
-            <Title order={3}>Inscribing...</Title>
+            <Title order={3}>Updating Inscription</Title>
             <Text>Be prepared to approve many transactions...</Text>
             <Center w="100%">
               <Stack w="100%">
