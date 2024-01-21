@@ -2,18 +2,17 @@ import { Button, Center, Container, Loader, Modal, Paper, Progress, Stack, Text,
 import { useCallback, useEffect, useState } from 'react';
 import pMap from 'p-map';
 import { useQueryClient } from '@tanstack/react-query';
-import { allocate, createShard, findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findInscriptionShardPda, findMintInscriptionPda, initializeAssociatedInscription, initializeFromMint, safeFetchInscriptionShard, writeData } from '@metaplex-foundation/mpl-inscription';
+import { createShard, findAssociatedInscriptionAccountPda, findInscriptionMetadataPda, findInscriptionShardPda, findMintInscriptionPda, initializeAssociatedInscription, initializeFromMint, safeFetchInscriptionShard } from '@metaplex-foundation/mpl-inscription';
 import Compressor from 'compressorjs';
 import { useDisclosure } from '@mantine/hooks';
-import { Pda, Transaction, TransactionBuilder, TransactionBuilderGroup, Umi, signAllTransactions } from '@metaplex-foundation/umi';
+import { Pda, TransactionBuilder, Umi } from '@metaplex-foundation/umi';
 import { DasApiAsset } from '@metaplex-foundation/digital-asset-standard-api';
 import { notifications } from '@mantine/notifications';
-import { base58, set } from '@metaplex-foundation/umi/serializers';
 import { useUmi } from '@/providers/useUmi';
 import { InscriptionSettings } from './ConfigureInscribe';
 import { useEnv } from '@/providers/useEnv';
+import { buildAllocate, buildChunkedWriteData, prepareAndSignTxs, sendTxsWithRetries } from '@/lib/tx';
 
-const MAX_PERMITTED_DATA_INCREASE = 10_240;
 const sizeOf = require('browser-image-size');
 
 async function fetchIdempotentInscriptionShard(umi: Umi, number = Math.floor(Math.random() * 32)) {
@@ -34,8 +33,6 @@ async function fetchIdempotentInscriptionShard(umi: Umi, number = Math.floor(Mat
 
   return shardAccount;
 }
-
-const signatureToString = (signature: Uint8Array) => base58.deserialize(signature)[0];
 
 type Calculated = {
   json: any;
@@ -180,7 +177,6 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
       const randomShard = () => shardAccounts[Math.floor(Math.random() * shardAccounts.length)];
       let setupBuilder = new TransactionBuilder();
       let dataBuilder = new TransactionBuilder();
-      const chunkSize = 800;
       const imageDatas = (await Promise.all(summary.calculated.map((c) => c.newImage?.arrayBuffer()))).map((b) => b ? new Uint8Array(b) : null);
       const enc = new TextEncoder();
 
@@ -193,13 +189,16 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
           .add(initializeFromMint(umi, {
             mintAccount: c.nft.id,
             inscriptionShardAccount: randomShard(),
-          }))
-          .add(allocate(umi, {
-            inscriptionAccount: c.inscriptionPda[0],
-            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-            associatedTag: null,
-            targetSize: c.jsonLength,
           }));
+
+        setupBuilder = buildAllocate({
+          builder: setupBuilder,
+          umi,
+          inscriptionAccount: c.inscriptionPda[0],
+          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+          associatedTag: null,
+          targetSize: c.jsonLength,
+        });
 
         if (c.newImage) {
           setupBuilder = setupBuilder
@@ -209,144 +208,78 @@ export function DoInscribe({ inscriptionSettings, onComplete }: { inscriptionSet
               inscriptionMetadataAccount: c.inscriptionMetadataAccount,
             }));
 
-          // we need to call allocate multiple times because Solana accounts can only be allocated at most 10k at a time
-          const numAllocates = Math.ceil(c.newImage.size / MAX_PERMITTED_DATA_INCREASE);
-          for (let j = 0; j < numAllocates; j += 1) {
-            setupBuilder = setupBuilder.add(allocate(umi, {
-              inscriptionAccount: c.imagePda,
-              inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-              associatedTag: 'image',
-              targetSize: c.newImage.size,
-            }));
-          }
-
-          const imageData = imageDatas[index] as Uint8Array;
-          let i = 0;
-          let chunks = 0;
-          while (i < imageData.length) {
-            dataBuilder = dataBuilder.add(writeData(umi, {
-              inscriptionAccount: c.imagePda,
-              inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-              value: imageData.slice(i, i + chunkSize),
-              associatedTag: 'image',
-              offset: i,
-            }));
-            i += chunkSize;
-            chunks += 1;
-          }
-          console.log('image chunks', chunks);
-        }
-
-        const jsonData = enc.encode(JSON.stringify(c.json));
-        let i = 0;
-        let chunks = 0;
-        while (i < jsonData.length) {
-          dataBuilder = dataBuilder.add(writeData(umi, {
-            inscriptionAccount: c.inscriptionPda[0],
+          setupBuilder = buildAllocate({
+            builder: setupBuilder,
+            umi,
+            inscriptionAccount: c.imagePda,
             inscriptionMetadataAccount: c.inscriptionMetadataAccount,
-            value: jsonData.slice(i, i + chunkSize),
-            associatedTag: null,
-            offset: i,
-          }));
-          i += chunkSize;
-          chunks += 1;
+            associatedTag: 'image',
+            targetSize: c.newImage.size,
+          });
+
+          dataBuilder = buildChunkedWriteData({
+            builder: dataBuilder,
+            umi,
+            inscriptionAccount: c.imagePda,
+            inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+            associatedTag: 'image',
+            data: imageDatas[index] as Uint8Array,
+          });
         }
-        console.log('json chunks', chunks);
+
+        dataBuilder = buildChunkedWriteData({
+          builder: dataBuilder,
+          umi,
+          inscriptionAccount: c.inscriptionPda[0],
+          inscriptionMetadataAccount: c.inscriptionMetadataAccount,
+          associatedTag: null,
+          data: enc.encode(JSON.stringify(c.json)),
+        });
       });
 
       console.log('data ix length', dataBuilder.getInstructions().length);
 
-      const split = setupBuilder.unsafeSplitByTransactionSize(umi);
-      console.log('setup tx length', split.length);
-      const dataSplit = dataBuilder.unsafeSplitByTransactionSize(umi);
-      console.log('data tx length', dataSplit.length);
-      setMaxProgress(split.length + dataSplit.length);
-
-      let txsToSend;
-      let retries;
       const results: string[] = [];
       if (!skipInit) {
-        const setupTxs = (await new TransactionBuilderGroup(split).setLatestBlockhash(umi)).build(umi);
+        const signedTx = await prepareAndSignTxs({
+          umi,
+          builder: setupBuilder,
+        });
 
-        const signedTxs = await signAllTransactions(setupTxs.map((tx => ({
-          transaction: tx,
-          signers: [umi.identity],
-        }))));
+        setMaxProgress(signedTx.length);
 
-        txsToSend = [...signedTxs];
-        retries = 3;
+        const setupRes = await sendTxsWithRetries({
+          umi,
+          txs: signedTx,
+          concurrency: 2,
+          onProgress: () => setProgress((p) => p + 1),
+        });
 
-        do {
-          const errors: Transaction[] = [];
-          console.log('init tries left', retries);
-          // eslint-disable-next-line no-await-in-loop
-          await pMap(txsToSend, async (tx) => {
-            try {
-              const res = await umi.rpc.sendTransaction(tx, {
-                commitment: 'finalized',
-              });
-              const sig = signatureToString(res);
-              console.log('signature', sig);
-
-              setProgress((p) => p + 1);
-              results.push(sig);
-            } catch (e) {
-              console.log(e);
-              errors.push(tx);
-            }
-          }, {
-            concurrency: 2,
-          });
-          txsToSend = errors;
-          retries -= 1;
-        } while (txsToSend.length && retries >= 0);
-
-        if (txsToSend.length) {
+        if (setupRes.errors.length) {
           throw new Error('Setup transactions failed to confirm successfully');
         }
+        results.push(...setupRes.signatures);
       }
 
-      const dataTxs = (await new TransactionBuilderGroup(dataSplit).setLatestBlockhash(umi)).build(umi);
+      const signedDataTxs = await prepareAndSignTxs({
+        umi,
+        builder: dataBuilder,
+      });
 
-      console.log('data', summary.calculated);
+      setMaxProgress((p) => p + signedDataTxs.length);
 
-      const signedDataTxs = await signAllTransactions(dataTxs.map((tx => ({
-        transaction: tx,
-        signers: [umi.identity],
-      }))));
+      const dataRes = await sendTxsWithRetries({
+        umi,
+        txs: signedDataTxs,
+        concurrency: 2,
+        onProgress: () => setProgress((p) => p + 1),
+      });
 
-      txsToSend = [...signedDataTxs];
-      retries = 3;
-
-      // TODO refactor into function
-      do {
-        const errors: Transaction[] = [];
-        console.log('data tries left', retries);
-        // eslint-disable-next-line no-await-in-loop
-        await pMap(txsToSend, async (tx) => {
-          try {
-            const res = await umi.rpc.sendTransaction(tx);
-            const sig = signatureToString(res);
-            console.log('signature', sig);
-
-            setProgress((p) => p + 1);
-            results.push(sig);
-          } catch (e) {
-            console.log(e);
-            errors.push(tx);
-            throw e;
-          }
-        }, {
-          concurrency: 2,
-        });
-        txsToSend = errors;
-        retries -= 1;
-      } while (txsToSend.length && retries >= 0);
-
-      if (txsToSend.length) {
+      if (dataRes.errors.length) {
         throw new Error('Write data transactions failed to confirm successfully');
       }
 
+      results.push(...dataRes.signatures);
       onComplete(results);
     } catch (e: any) {
       console.log(e);

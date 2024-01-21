@@ -1,7 +1,7 @@
 import { Box, Button, Center, Grid, Paper, Stack, Stepper, Title } from '@mantine/core';
 import { useState } from 'react';
 import { CodeHighlightTabs } from '@mantine/code-highlight';
-import { IconWritingSign } from '@tabler/icons-react';
+import { IconChisel } from '@tabler/icons-react';
 import { NftSelector } from './NftSelector';
 import { ConfigureInscribe, InscriptionSettings } from './ConfigureInscribe';
 import { DoInscribe } from './DoInscribe';
@@ -76,8 +76,8 @@ export function Inscribe() {
           <Paper mt="lg" p="lg">
             <Center>
               <Stack align="center">
-                <Box w="50%">
-                  <IconWritingSign size="xl" color="var(--mantine-color-grape-5)" />
+                <Box w="50%" mt="xl">
+                  <IconChisel size="xl" color="var(--mantine-color-blue-7)" />
                 </Box>
                 <Title>Congratulations! You have inscribed your NFTs.</Title>
                 <Grid my="lg" w="100%" justify="center" gutter="lg">

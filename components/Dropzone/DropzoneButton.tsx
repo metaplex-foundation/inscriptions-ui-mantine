@@ -1,10 +1,10 @@
-import { useRef } from 'react';
+import { ReactNode, useRef } from 'react';
 import { Text, Group, Button, rem, useMantineTheme } from '@mantine/core';
 import { Dropzone } from '@mantine/dropzone';
 import { IconCloudUpload, IconX, IconDownload } from '@tabler/icons-react';
 import classes from './DropzoneButton.module.css';
 
-export function DropzoneButton({ onDrop, mimeTypes, name }: { onDrop: (files: File[]) => void, mimeTypes: string[], name: string }) {
+export function DropzoneButton({ onDrop, mimeTypes, name, children }: { onDrop: (files: File[]) => void, mimeTypes: string[], name: string, children?: ReactNode }) {
   const theme = useMantineTheme();
   const openRef = useRef<() => void>(null);
 
@@ -38,17 +38,17 @@ export function DropzoneButton({ onDrop, mimeTypes, name }: { onDrop: (files: Fi
               <IconCloudUpload style={{ width: rem(50), height: rem(50) }} stroke={1.5} />
             </Dropzone.Idle>
           </Group>
-
+          {children}
           <Text ta="center" fw={700} fz="lg" mt="xl">
             <Dropzone.Accept>Drop files here</Dropzone.Accept>
             <Dropzone.Reject>File less than 30mb</Dropzone.Reject>
-            <Dropzone.Idle>Upload {name} override</Dropzone.Idle>
+            <Dropzone.Idle>Upload {name}</Dropzone.Idle>
           </Text>
           <Text ta="center" fz="sm" mt="xs" c="dimmed">
-            Drag&apos;n&apos;drop {name} files here to upload. We can accept only {name} files that
+            Drag and drop {name} files here to upload. We can accept only {name} files that
             are less than 30mb in size.
           </Text>
-          <Button className={classes.control} size="md" radius="xl" onClick={() => openRef.current?.()}>
+          <Button className={classes.control} mt="md" size="md" radius="xl" onClick={() => openRef.current?.()}>
             Select files
           </Button>
         </div>
