@@ -1,5 +1,5 @@
 import '@mantine/core/styles.css';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { NavigationProgress } from '@mantine/nprogress';
 
@@ -31,7 +31,9 @@ export default function RootLayout({ children }: { children: any }) {
       <body>
         <MantineProvider theme={theme} defaultColorScheme="dark">
           <NavigationProgress />
-          <Providers>{children}</Providers>
+          <Suspense>
+            <Providers>{children}</Providers>
+          </Suspense>
         </MantineProvider>
       </body>
     </html>
